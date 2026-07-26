@@ -112,6 +112,18 @@ export default async function ChildDetailPage({
       >
         Journal d&apos;intégrité{unreadIntegrityCount > 0 ? ` (${unreadIntegrityCount} nouveau${unreadIntegrityCount > 1 ? "x" : ""})` : ""}
       </Link>
+      <Link
+        href={`/dashboard/${child.id}/messages`}
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Discussions avec un prof
+      </Link>
+      <Link
+        href={`/dashboard/${child.id}/suggestions`}
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Idées et suggestions
+      </Link>
     </main>
   );
 }

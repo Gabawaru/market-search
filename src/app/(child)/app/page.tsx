@@ -50,6 +50,18 @@ export default async function ChildHomePage() {
       >
         Mes points et récompenses
       </Link>
+      <Link
+        href="/app/messages"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Discuter avec mon prof
+      </Link>
+      <Link
+        href="/app/suggestions"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Mes idées et suggestions
+      </Link>
     </main>
   );
 }
