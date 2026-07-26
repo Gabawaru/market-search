@@ -8,6 +8,7 @@ import { recordIntegrityEvent } from "@/lib/integrity/scoring";
 import { awardPoints } from "@/lib/progression/points";
 import { recordDailyActivity } from "@/lib/progression/streaks";
 import { maybeAwardBadge } from "@/lib/progression/badges";
+import { createLessonStoryEntryForEvaluation } from "@/lib/assessment/lessonStory";
 import type { Prisma } from "@/generated/prisma/client";
 
 export class EvaluationEligibilityError extends Error {}
@@ -180,6 +181,7 @@ export async function finishEvaluation(evaluationId: string, childId: string) {
     }
   }
   await recordDailyActivity(childId);
+  await createLessonStoryEntryForEvaluation(evaluationId);
 
   return { totalScore, passed, invalidated: alreadyInvalidated };
 }
