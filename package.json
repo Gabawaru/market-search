@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma migrate deploy && npm run db:seed && npm run db:seed-demo && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",

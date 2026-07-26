@@ -11,38 +11,41 @@ function generatePin(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
+// Idempotent par conception : ce script tourne à chaque build (Vercel n'a pas besoin d'un accès
+// direct que je n'ai pas depuis mon environnement de travail pour l'exécuter séparément). Il ne
+// régénère jamais un mot de passe/PIN déjà en place — sinon les identifiants déjà communiqués au
+// parent deviendraient invalides à chaque nouveau déploiement.
 async function main() {
   const parentEmail = process.env.DEMO_PARENT_EMAIL ?? "gabriel.carb.pro@gmail.com";
-  const parentPassword = generatePassword();
-  const parent = await prisma.parent.upsert({
-    where: { email: parentEmail },
-    update: { passwordHash: await hashSecret(parentPassword), name: "Gabriel" },
-    create: {
-      email: parentEmail,
-      name: "Gabriel",
-      passwordHash: await hashSecret(parentPassword),
-    },
-  });
+  let parent = await prisma.parent.findUnique({ where: { email: parentEmail } });
+  if (parent) {
+    console.log(`Parent   : ${parentEmail} (déjà configuré, mot de passe inchangé)`);
+  } else {
+    const parentPassword = generatePassword();
+    parent = await prisma.parent.create({
+      data: { email: parentEmail, name: "Gabriel", passwordHash: await hashSecret(parentPassword) },
+    });
+    console.log(`Parent   : ${parentEmail} / ${parentPassword}`);
+  }
 
   const teacherEmail = "prof.demo@oumno-education.fr";
-  const teacherPassword = generatePassword();
-  const teacher = await prisma.teacher.upsert({
-    where: { email: teacherEmail },
-    update: {
-      passwordHash: await hashSecret(teacherPassword),
-      name: "Prof Démo",
-      verified: true,
-      mustChangePassword: false,
-    },
-    create: {
-      email: teacherEmail,
-      name: "Prof Démo",
-      passwordHash: await hashSecret(teacherPassword),
-      verified: true,
-      bio: "Compte prof de démonstration.",
-      ratePerSession: 20,
-    },
-  });
+  const existingTeacher = await prisma.teacher.findUnique({ where: { email: teacherEmail } });
+  if (existingTeacher) {
+    console.log(`Prof     : ${teacherEmail} (déjà configuré, mot de passe inchangé)`);
+  } else {
+    const teacherPassword = generatePassword();
+    await prisma.teacher.create({
+      data: {
+        email: teacherEmail,
+        name: "Prof Démo",
+        passwordHash: await hashSecret(teacherPassword),
+        verified: true,
+        bio: "Compte prof de démonstration.",
+        ratePerSession: 20,
+      },
+    });
+    console.log(`Prof     : ${teacherEmail} / ${teacherPassword}`);
+  }
 
   const existingChildren = await prisma.child.findMany({
     where: { parentId: parent.id },
@@ -54,36 +57,18 @@ async function main() {
     { name: "Yanis", birthYear: new Date().getFullYear() - 10 },
   ];
 
-  const children: { name: string; pin: string }[] = [];
-  for (let i = 0; i < childSpecs.length; i++) {
-    const spec = childSpecs[i];
-    const pin = generatePin();
+  for (const spec of childSpecs) {
     const existing = existingChildren.find((c) => c.name === spec.name);
     if (existing) {
-      await prisma.child.update({
-        where: { id: existing.id },
-        data: { pinHash: await hashSecret(pin), birthYear: spec.birthYear },
-      });
-    } else {
-      await prisma.child.create({
-        data: {
-          parentId: parent.id,
-          name: spec.name,
-          birthYear: spec.birthYear,
-          pinHash: await hashSecret(pin),
-        },
-      });
+      console.log(`Enfant   : ${spec.name} (déjà configuré, PIN inchangé)`);
+      continue;
     }
-    children.push({ name: spec.name, pin });
+    const pin = generatePin();
+    await prisma.child.create({
+      data: { parentId: parent.id, name: spec.name, birthYear: spec.birthYear, pinHash: await hashSecret(pin) },
+    });
+    console.log(`Enfant   : ${spec.name} — PIN ${pin} (via la sélection de profil du compte parent ci-dessus)`);
   }
-
-  console.log("=== Comptes de démo Oumno Éducation ===");
-  console.log(`Parent   : ${parentEmail} / ${parentPassword}`);
-  console.log(`Prof     : ${teacherEmail} / ${teacherPassword}`);
-  for (const child of children) {
-    console.log(`Enfant   : ${child.name} — PIN ${child.pin} (via la sélection de profil du compte parent ci-dessus)`);
-  }
-  console.log(`Teacher record id: ${teacher.id}`);
 }
 
 main()
