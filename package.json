@@ -13,6 +13,7 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "dev:scan": "tsx scripts/dev-scan.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
