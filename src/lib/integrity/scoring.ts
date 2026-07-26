@@ -34,10 +34,20 @@ export async function recordIntegrityEvent(params: RecordIntegrityEventParams) {
   });
 
   if (action === "ZEROED_QUESTION" && params.evaluationAttemptId) {
-    await prisma.evaluationAttempt.update({
+    // L'appartenance de `evaluationId` à l'enfant est vérifiée par l'appelant, mais
+    // `evaluationAttemptId` vient du corps de la requête et n'est jamais garanti
+    // appartenir à cette même évaluation — sans ce contrôle, un enfant pourrait zérer la
+    // tentative de n'importe quel autre enfant en devinant/obtenant son ID.
+    const attempt = await prisma.evaluationAttempt.findUnique({
       where: { id: params.evaluationAttemptId },
-      data: { scoreOverride: 0 },
+      select: { evaluationId: true },
     });
+    if (attempt && attempt.evaluationId === params.evaluationId) {
+      await prisma.evaluationAttempt.update({
+        where: { id: params.evaluationAttemptId },
+        data: { scoreOverride: 0 },
+      });
+    }
   }
 
   if (action === "ZEROED_EVALUATION") {
