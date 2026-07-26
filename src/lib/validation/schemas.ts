@@ -14,12 +14,10 @@ export const parentRegisterSchema = z.object({
   password: passwordSchema,
 });
 
-export const teacherRegisterSchema = z.object({
+export const teacherApplicationSchema = z.object({
   name: z.string().trim().min(1, "Le nom est requis"),
   email: emailSchema,
-  password: passwordSchema,
-  bio: z.string().trim().max(2000).optional(),
-  ratePerSession: z.coerce.number().positive().optional(),
+  message: z.string().trim().max(2000).optional(),
 });
 
 export const childCreateSchema = z.object({

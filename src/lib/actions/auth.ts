@@ -8,9 +8,10 @@ import { auth, signIn, signOut } from "@/auth";
 import { hashSecret, verifySecret } from "@/lib/auth/password";
 import {
   parentRegisterSchema,
-  teacherRegisterSchema,
+  teacherApplicationSchema,
   childCreateSchema,
   childLoginSchema,
+  passwordSchema,
 } from "@/lib/validation/schemas";
 import { setChildSessionCookie, clearChildSessionCookie } from "@/lib/auth/childSession";
 
@@ -87,45 +88,51 @@ export async function logoutParent() {
 // Teacher
 // ---------------------------------------------------------------------------
 
-export async function registerTeacher(formData: FormData) {
-  const parsed = teacherRegisterSchema.safeParse({
+// Un prof ne peut plus créer son compte directement : il envoie une candidature, qui doit
+// être validée depuis l'espace développeur avant qu'un compte (avec identifiants temporaires)
+// n'existe. Voir approveTeacherApplication dans lib/actions/devConsole.ts.
+export async function applyAsTeacher(formData: FormData) {
+  const parsed = teacherApplicationSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
-    password: formData.get("password"),
-    bio: formData.get("bio") || undefined,
-    ratePerSession: formData.get("ratePerSession") || undefined,
+    message: formData.get("message") || undefined,
   });
   if (!parsed.success) {
-    redirect(`/teacher/register?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+    redirect(`/teacher/apply?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
   }
 
-  const { name, email, password, bio, ratePerSession } = parsed.data;
-  const passwordHash = await hashSecret(password);
-
   try {
-    await prisma.teacher.create({
-      data: { name, email, passwordHash, bio, ratePerSession },
-    });
+    await prisma.teacherApplication.create({ data: parsed.data });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
-      redirect(`/teacher/register?error=${encodeURIComponent("Un compte existe déjà avec cet email")}`);
+      redirect(
+        `/teacher/apply?error=${encodeURIComponent("Une candidature existe déjà avec cet email")}`,
+      );
     }
     throw error;
   }
 
-  try {
-    await signIn("credentials", {
-      email,
-      password,
-      role: "TEACHER",
-      redirectTo: "/teacher/dashboard",
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      redirect(`/teacher/login?error=${encodeURIComponent("Connexion impossible")}`);
-    }
-    throw error;
+  redirect("/teacher/apply?success=1");
+}
+
+export async function changeTeacherPassword(formData: FormData) {
+  const session = await auth();
+  if (session?.user.role !== "TEACHER") {
+    redirect("/teacher/login");
   }
+
+  const parsed = passwordSchema.safeParse(formData.get("password"));
+  if (!parsed.success) {
+    redirect(`/teacher/change-password?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+  }
+
+  const passwordHash = await hashSecret(parsed.data);
+  await prisma.teacher.update({
+    where: { id: session.user.id },
+    data: { passwordHash, mustChangePassword: false },
+  });
+
+  redirect("/teacher/dashboard");
 }
 
 export async function loginTeacher(formData: FormData) {

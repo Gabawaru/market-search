@@ -43,8 +43,8 @@ export default async function TeacherLoginPage({
 
       <p className="text-sm text-gray-500">
         Pas encore de compte ?{" "}
-        <Link href="/teacher/register" className="text-emerald-600 underline">
-          Créer un compte prof
+        <Link href="/teacher/apply" className="text-emerald-600 underline">
+          Envoyer une candidature
         </Link>
       </p>
     </main>

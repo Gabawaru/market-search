@@ -61,20 +61,42 @@ model Child {
 }
 
 model Teacher {
-  id             String   @id @default(cuid())
-  email          String   @unique
-  passwordHash   String
-  name           String
-  bio            String?
-  ratePerSession Float?
-  verified       Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  passwordHash       String
+  name               String
+  bio                String?
+  ratePerSession     Float?
+  verified           Boolean  @default(false)
+  // Vrai pour un compte créé par l'espace développeur suite à une candidature : le prof doit
+  // définir son propre mot de passe avant d'accéder à son espace.
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   availabilities   TeacherAvailability[]
   tutoringRequests TutoringRequest[]
   chatThreads      ChatThreadParticipant[]
   notifications    Notification[]
+}
+
+enum TeacherApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Un prof ne peut plus s'inscrire directement : il envoie une candidature (message), qui est
+// validée depuis l'espace développeur — c'est cette validation qui crée le compte Teacher et
+// génère un mot de passe temporaire à relayer au prof.
+model TeacherApplication {
+  id         String                   @id @default(cuid())
+  name       String
+  email      String                   @unique
+  message    String?
+  status     TeacherApplicationStatus @default(PENDING)
+  createdAt  DateTime                 @default(now())
+  reviewedAt DateTime?
 }
 
 model TeacherAvailability {

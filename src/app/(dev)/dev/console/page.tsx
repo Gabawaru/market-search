@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
-import { approveDevSuggestion, rejectDevSuggestion } from "@/lib/actions/devConsole";
+import {
+  approveDevSuggestion,
+  rejectDevSuggestion,
+  approveTeacherApplication,
+  rejectTeacherApplication,
+} from "@/lib/actions/devConsole";
 
 const CATEGORY_LABELS: Record<string, string> = {
   CONTENT: "Contenu",
@@ -10,25 +15,90 @@ const CATEGORY_LABELS: Record<string, string> = {
   CODE: "Code",
 };
 
-export default async function DevConsolePage() {
+export default async function DevConsolePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tempPasswordEmail?: string; tempPassword?: string }>;
+}) {
+  const { tempPasswordEmail, tempPassword } = await searchParams;
   const session = await auth();
   if (session?.user.role !== "DEV_ADMIN") {
     redirect("/dev/login");
   }
 
-  const [pendingSuggestions, reviewedSuggestions, scanRuns] = await Promise.all([
-    prisma.devSuggestion.findMany({ where: { status: "PENDING" }, orderBy: { createdAt: "desc" } }),
-    prisma.devSuggestion.findMany({
-      where: { status: { in: ["APPROVED", "REJECTED", "APPLIED"] } },
-      orderBy: { reviewedAt: "desc" },
-      take: 10,
-    }),
-    prisma.aiScanRun.findMany({ orderBy: { runAt: "desc" }, take: 10 }),
-  ]);
+  const [pendingSuggestions, reviewedSuggestions, scanRuns, pendingApplications] =
+    await Promise.all([
+      prisma.devSuggestion.findMany({ where: { status: "PENDING" }, orderBy: { createdAt: "desc" } }),
+      prisma.devSuggestion.findMany({
+        where: { status: { in: ["APPROVED", "REJECTED", "APPLIED"] } },
+        orderBy: { reviewedAt: "desc" },
+        take: 10,
+      }),
+      prisma.aiScanRun.findMany({ orderBy: { runAt: "desc" }, take: 10 }),
+      prisma.teacherApplication.findMany({
+        where: { status: "PENDING" },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 px-4 py-12">
       <h1 className="text-2xl font-bold">Espace développeur</h1>
+
+      {tempPasswordEmail && tempPassword && (
+        <div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-4">
+          <p className="font-medium text-amber-900">
+            Compte créé pour {tempPasswordEmail} — mot de passe temporaire (affiché une seule
+            fois, à relayer immédiatement de façon sécurisée) :
+          </p>
+          <code className="mt-2 block rounded bg-white px-3 py-2 text-lg font-bold">
+            {tempPassword}
+          </code>
+          <p className="mt-2 text-sm text-amber-800">
+            Le prof devra le changer dès sa première connexion sur <code>/teacher/login</code>.
+          </p>
+        </div>
+      )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Candidatures profs en attente</h2>
+        {pendingApplications.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucune candidature en attente.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {pendingApplications.map((application) => (
+              <li key={application.id} className="rounded-lg border p-3">
+                <div className="font-medium">
+                  {application.name} — {application.email}
+                </div>
+                {application.message && (
+                  <p className="text-sm text-gray-600">{application.message}</p>
+                )}
+                <div className="mt-2 flex gap-2">
+                  <form action={approveTeacherApplication}>
+                    <input type="hidden" name="id" value={application.id} />
+                    <button
+                      type="submit"
+                      className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700"
+                    >
+                      Approuver et créer le compte
+                    </button>
+                  </form>
+                  <form action={rejectTeacherApplication}>
+                    <input type="hidden" name="id" value={application.id} />
+                    <button
+                      type="submit"
+                      className="rounded-md border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Rejeter
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Suggestions en attente de validation</h2>
