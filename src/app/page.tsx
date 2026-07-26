@@ -34,7 +34,10 @@ export default function Home() {
 
       <p className="text-xs text-gray-400">
         Oumno Éducation est un projet du groupe Oumno, non encore officialisé — usage
-        non-commercial jusqu&apos;à officialisation.
+        non-commercial jusqu&apos;à officialisation.{" "}
+        <Link href="/a-propos" className="underline">
+          En savoir plus
+        </Link>
       </p>
     </main>
   );
