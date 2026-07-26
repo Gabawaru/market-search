@@ -1,0 +1,23 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo Oumno Éducation">
+  <circle cx="32" cy="32" r="32" fill="#4f46e5" />
+
+  <!-- Aigrettes -->
+  <path d="M21 21 L15 9 L28 18 Z" fill="#4f46e5" stroke="#4f46e5" stroke-width="1" />
+  <path d="M43 21 L49 9 L36 18 Z" fill="#4f46e5" stroke="#4f46e5" stroke-width="1" />
+
+  <!-- Tête / visage -->
+  <circle cx="32" cy="34" r="20" fill="#eef2ff" />
+
+  <!-- Yeux -->
+  <circle cx="24" cy="31" r="7.5" fill="#ffffff" />
+  <circle cx="40" cy="31" r="7.5" fill="#ffffff" />
+  <circle cx="24.5" cy="32" r="3.4" fill="#1e1b4b" />
+  <circle cx="40.5" cy="32" r="3.4" fill="#1e1b4b" />
+
+  <!-- Bec -->
+  <polygon points="32,38 28,44 36,44" fill="#f59e0b" />
+
+  <!-- Toque -->
+  <rect x="18" y="12" width="28" height="4" rx="1.5" fill="#1e1b4b" />
+  <polygon points="32,4 50,14 32,18 14,14" fill="#312e81" />
+</svg>

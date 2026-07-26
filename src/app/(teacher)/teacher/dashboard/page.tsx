@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { OumnoLogo } from "@/components/branding/OumnoLogo";
 
 export default async function TeacherDashboardPage() {
   const session = await auth();
@@ -10,6 +11,7 @@ export default async function TeacherDashboardPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-4 px-4 py-12">
+      <OumnoLogo size={28} withWordmark />
       <h1 className="text-2xl font-bold">Bonjour {session.user.name}</h1>
       <Link
         href="/teacher/dashboard/messages"

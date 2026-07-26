@@ -19,7 +19,11 @@ export default async function ChildHomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-4 px-4 py-12">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Salut {childSession.name} !</h1>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- petit SVG statique */}
+          <img src="/mascot.svg" alt="" className="h-16 w-auto" />
+          <h1 className="text-2xl font-bold">Salut {childSession.name} !</h1>
+        </div>
         <form action={logoutChild}>
           <button type="submit" className="text-sm text-gray-500 underline">
             Changer de profil

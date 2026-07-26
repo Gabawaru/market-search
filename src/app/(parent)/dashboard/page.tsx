@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { logoutParent } from "@/lib/actions/auth";
+import { OumnoLogo } from "@/components/branding/OumnoLogo";
 
 export default async function ParentDashboardPage() {
   const session = await auth();
@@ -17,6 +18,7 @@ export default async function ParentDashboardPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 px-4 py-12">
+      <OumnoLogo size={28} withWordmark />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Bonjour {session.user.name}</h1>

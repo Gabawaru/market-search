@@ -1,14 +1,21 @@
 import Link from "next/link";
+import { OumnoLogo } from "@/components/branding/OumnoLogo";
 
 export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-6 py-16">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight">Oumno Éducation</h1>
-        <p className="mt-3 max-w-xl text-lg text-gray-600">
-          Apprendre les maths à son rythme, avec des exercices progressifs façon Kumon, un suivi
-          honnête de la progression, et des évaluations qui comptent vraiment.
-        </p>
+      <OumnoLogo size={36} withWordmark />
+
+      <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+        {/* eslint-disable-next-line @next/next/no-img-element -- petit SVG statique */}
+        <img src="/mascot.svg" alt="Oumi, la mascotte d'Oumno Éducation" className="h-32 w-auto shrink-0" />
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight">Oumno Éducation</h1>
+          <p className="mt-3 max-w-xl text-lg text-gray-600">
+            Apprendre les maths à son rythme, avec des exercices progressifs façon Kumon, un suivi
+            honnête de la progression, et des évaluations qui comptent vraiment.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
