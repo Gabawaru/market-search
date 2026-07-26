@@ -124,6 +124,12 @@ export default async function ChildDetailPage({
       >
         Idées et suggestions
       </Link>
+      <Link
+        href={`/dashboard/${child.id}/tutoring`}
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Cours particuliers
+      </Link>
     </main>
   );
 }

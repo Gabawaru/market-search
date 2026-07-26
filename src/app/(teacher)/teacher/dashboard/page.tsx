@@ -17,9 +17,12 @@ export default async function TeacherDashboardPage() {
       >
         Mes discussions
       </Link>
-      <p className="text-sm text-gray-500">
-        Les élèves accompagnés, les objectifs et la rémunération arrivent en phase 7.
-      </p>
+      <Link
+        href="/teacher/dashboard/tutoring"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Demandes de cours particuliers
+      </Link>
     </main>
   );
 }
