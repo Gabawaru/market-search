@@ -216,6 +216,75 @@ async function seedMathCurriculum() {
   console.log("Curriculum de maths (seed) prêt.");
 }
 
+const BADGES: { code: string; label: string; description: string; icon: string }[] = [
+  {
+    code: "first_evaluation_passed",
+    label: "Premier niveau validé",
+    description: "Tu as réussi ta première évaluation !",
+    icon: "🏆",
+  },
+  {
+    code: "streak_7",
+    label: "Une semaine d'assiduité",
+    description: "7 jours d'affilée à t'entraîner.",
+    icon: "🔥",
+  },
+  {
+    code: "streak_30",
+    label: "Un mois d'assiduité",
+    description: "30 jours d'affilée à t'entraîner !",
+    icon: "🔥",
+  },
+  {
+    code: "hundred_exercises",
+    label: "100 exercices",
+    description: "Tu as réalisé 100 exercices d'entraînement.",
+    icon: "💯",
+  },
+];
+
+async function seedBadges() {
+  for (const badge of BADGES) {
+    await prisma.badge.upsert({ where: { code: badge.code }, update: badge, create: badge });
+  }
+  console.log("Badges (seed) prêts.");
+}
+
+const REWARD_CATALOG: { code: string; label: string; description: string; cost: number; icon: string }[] = [
+  {
+    code: "pause_day",
+    label: "Jour de pause",
+    description: "Un jour de pause qui ne casse pas ta série.",
+    cost: 100,
+    icon: "🌴",
+  },
+  {
+    code: "avatar_star",
+    label: "Étoile spéciale",
+    description: "Une étoile qui brille sur ton profil.",
+    cost: 50,
+    icon: "⭐",
+  },
+  {
+    code: "color_theme",
+    label: "Thème coloré",
+    description: "Débloque un thème de couleurs pour ton espace.",
+    cost: 75,
+    icon: "🎨",
+  },
+];
+
+async function seedRewardCatalog() {
+  for (const item of REWARD_CATALOG) {
+    await prisma.rewardCatalogItem.upsert({
+      where: { code: item.code },
+      update: item,
+      create: item,
+    });
+  }
+  console.log("Catalogue de récompenses (seed) prêt.");
+}
+
 async function seedDevAdmin() {
   const email = process.env.DEV_ADMIN_EMAIL;
   const password = process.env.DEV_ADMIN_PASSWORD;
@@ -241,6 +310,8 @@ async function seedDevAdmin() {
 async function main() {
   await seedDevAdmin();
   await seedMathCurriculum();
+  await seedBadges();
+  await seedRewardCatalog();
 }
 
 main()

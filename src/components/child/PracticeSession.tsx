@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import useSWR from "swr";
+import { pickCorrectMessage, pickIncorrectMessage } from "@/lib/progression/feedbackMessages";
 
 interface ExercisePayload {
   instanceId: string;
@@ -14,6 +15,7 @@ interface AttemptResult {
   correctAnswer: string;
   masteryScore: number;
   readyForEvaluation: boolean;
+  currentStreak: number;
 }
 
 async function fetchExercise(url: string): Promise<ExercisePayload> {
@@ -29,6 +31,7 @@ export function PracticeSession({ skillId }: { skillId: string }) {
   const [round, setRound] = useState(0);
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState<AttemptResult | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
   const startedAtRef = useRef(0);
 
   const {
@@ -64,6 +67,9 @@ export function PracticeSession({ skillId }: { skillId: string }) {
     if (!res.ok) return;
     const result: AttemptResult = await res.json();
     setFeedback(result);
+    setFeedbackMessage(
+      result.isCorrect ? pickCorrectMessage() : pickIncorrectMessage(result.correctAnswer),
+    );
   }
 
   if (isLoading) return <p className="text-sm text-gray-500">Chargement...</p>;
@@ -79,13 +85,9 @@ export function PracticeSession({ skillId }: { skillId: string }) {
 
       {feedback ? (
         <div className="flex flex-col items-center gap-3">
-          {feedback.isCorrect ? (
-            <p className="text-lg font-medium text-emerald-600">Bravo, bonne réponse !</p>
-          ) : (
-            <p className="text-lg font-medium text-red-600">
-              Pas tout à fait — la bonne réponse était {feedback.correctAnswer}.
-            </p>
-          )}
+          <p className={feedback.isCorrect ? "text-lg font-medium text-emerald-600" : "text-lg font-medium text-red-600"}>
+            {feedbackMessage}
+          </p>
           {feedback.readyForEvaluation && (
             <p className="text-sm text-indigo-600">
               Tu maîtrises bien ce niveau, une évaluation sera bientôt possible !

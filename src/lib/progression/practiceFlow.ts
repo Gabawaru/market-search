@@ -6,6 +6,9 @@ import {
   recomputeMastery,
   isReadyForEvaluation,
 } from "@/lib/progression/unlockRules";
+import { awardPoints } from "@/lib/progression/points";
+import { recordDailyActivity } from "@/lib/progression/streaks";
+import { checkExerciseCountBadges } from "@/lib/progression/badges";
 
 export async function getNextPracticeExercise(childId: string, skillId: string) {
   const progress = await getOrCreateSkillProgress(childId, skillId);
@@ -63,10 +66,22 @@ export async function recordPracticeAttempt(params: RecordPracticeAttemptParams)
     where: { childId: params.childId, exerciseInstance: { exercise: { levelId: level.id } } },
   });
 
+  // Petits points même sur une erreur (participation) — l'effort compte, pas seulement le
+  // résultat, cohérent avec l'esprit "encouragement" du produit.
+  await awardPoints(
+    params.childId,
+    "EARNED_EXERCISE",
+    isCorrect ? 3 : 1,
+    isCorrect ? "Bonne réponse en entraînement" : "Exercice tenté en entraînement",
+  );
+  const { currentStreak } = await recordDailyActivity(params.childId);
+  await checkExerciseCountBadges(params.childId);
+
   return {
     isCorrect,
     correctAnswer: correctAnswer.value,
     masteryScore,
     readyForEvaluation: isReadyForEvaluation(masteryScore, attemptsCount, level),
+    currentStreak,
   };
 }

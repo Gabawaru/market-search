@@ -5,6 +5,9 @@ import { issueEvaluationToken } from "@/lib/auth/evaluationToken";
 import { checkEvaluationEligibility, advanceToNextLevelIfPassed } from "@/lib/progression/unlockRules";
 import { getAiTextDetector } from "@/lib/integrity/aiTextDetector";
 import { recordIntegrityEvent } from "@/lib/integrity/scoring";
+import { awardPoints } from "@/lib/progression/points";
+import { recordDailyActivity } from "@/lib/progression/streaks";
+import { maybeAwardBadge } from "@/lib/progression/badges";
 import type { Prisma } from "@/generated/prisma/client";
 
 export class EvaluationEligibilityError extends Error {}
@@ -162,6 +165,21 @@ export async function finishEvaluation(evaluationId: string, childId: string) {
   if (passed) {
     await advanceToNextLevelIfPassed(childId, evaluation.levelId);
   }
+
+  // Aucun point sur une évaluation invalidée (anomalie d'intégrité détectée) ; participation
+  // récompensée même en cas d'échec pour encourager à retenter, réussite largement récompensée.
+  if (!alreadyInvalidated) {
+    if (passed) {
+      await awardPoints(childId, "EARNED_EVALUATION", 50, "Évaluation réussie");
+      const passedCount = await prisma.evaluation.count({ where: { childId, passed: true } });
+      if (passedCount === 1) {
+        await maybeAwardBadge(childId, "first_evaluation_passed");
+      }
+    } else {
+      await awardPoints(childId, "EARNED_EVALUATION", 10, "Évaluation tentée");
+    }
+  }
+  await recordDailyActivity(childId);
 
   return { totalScore, passed, invalidated: alreadyInvalidated };
 }
