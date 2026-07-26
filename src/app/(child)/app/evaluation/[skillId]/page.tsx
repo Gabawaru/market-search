@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { getChildSession } from "@/lib/auth/childSession";
 import { prisma } from "@/lib/db/prisma";
 import { checkEvaluationEligibility } from "@/lib/progression/unlockRules";
-import { PracticeSession } from "@/components/child/PracticeSession";
+import { EvaluationGuard } from "@/components/evaluation/EvaluationGuard";
 
-export default async function PracticeSkillPage({
+export default async function EvaluationPage({
   params,
 }: {
   params: Promise<{ skillId: string }>;
@@ -21,25 +21,19 @@ export default async function PracticeSkillPage({
     redirect("/app/practice");
   }
 
+  // Recalculé côté serveur (jamais fait confiance à un enfant qui arriverait directement
+  // sur cette page) — si l'enfant n'est pas éligible, il est renvoyé au practice.
   const { eligible } = await checkEvaluationEligibility(session.childId, skillId);
+  if (!eligible) {
+    redirect(`/app/practice/${skillId}`);
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-4 py-12">
-      <Link href="/app/practice" className="text-sm text-indigo-600 underline">
+      <Link href={`/app/practice/${skillId}`} className="text-sm text-indigo-600 underline">
         ← Retour
       </Link>
-      <h1 className="text-2xl font-bold">{skill.name}</h1>
-
-      {eligible && (
-        <Link
-          href={`/app/evaluation/${skill.id}`}
-          className="rounded-lg border border-indigo-300 bg-indigo-50 p-4 text-center font-medium text-indigo-700 hover:bg-indigo-100"
-        >
-          Passer l&apos;évaluation de ce niveau
-        </Link>
-      )}
-
-      <PracticeSession skillId={skill.id} />
+      <EvaluationGuard skillId={skill.id} skillName={skill.name} />
     </main>
   );
 }

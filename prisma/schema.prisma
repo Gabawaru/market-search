@@ -219,19 +219,20 @@ enum EvaluationStatus {
 }
 
 model Evaluation {
-  id            String           @id @default(cuid())
-  childId       String
-  child         Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
-  levelId       String
-  level         Level            @relation(fields: [levelId], references: [id])
-  status        EvaluationStatus @default(NOT_STARTED)
-  sessionToken  String?
-  startedAt     DateTime?
-  finishedAt    DateTime?
-  totalScore    Float?
-  passed        Boolean?
-  invalidReason String?
-  createdAt     DateTime         @default(now())
+  id              String           @id @default(cuid())
+  childId         String
+  child           Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  levelId         String
+  level           Level            @relation(fields: [levelId], references: [id])
+  status          EvaluationStatus @default(NOT_STARTED)
+  sessionToken    String?
+  lastHeartbeatAt DateTime?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  totalScore      Float?
+  passed          Boolean?
+  invalidReason   String?
+  createdAt       DateTime         @default(now())
 
   attempts        EvaluationAttempt[]
   integrityEvents IntegrityEvent[]

@@ -18,6 +18,13 @@ function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
+// Les emails sont stockés normalisés (trim + minuscules, cf. emailSchema) — la connexion
+// doit appliquer la même normalisation, sinon une casse différente de celle saisie à
+// l'inscription ferait échouer authorize() alors que le mot de passe est correct.
+function normalizeEmail(value: FormDataEntryValue | null): string {
+  return (value ?? "").toString().trim().toLowerCase();
+}
+
 // ---------------------------------------------------------------------------
 // Parent
 // ---------------------------------------------------------------------------
@@ -44,13 +51,22 @@ export async function registerParent(formData: FormData) {
     throw error;
   }
 
-  await loginParent(formData);
+  // Utilise l'email normalisé (trim + minuscules) du schéma de validation, pas la valeur
+  // brute du formulaire — sinon la casse d'origine ne correspond plus à ce qui a été stocké.
+  try {
+    await signIn("credentials", { email, password, role: "PARENT", redirectTo: "/dashboard" });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      redirect(`/parent/login?error=${encodeURIComponent("Email ou mot de passe incorrect")}`);
+    }
+    throw error;
+  }
 }
 
 export async function loginParent(formData: FormData) {
   try {
     await signIn("credentials", {
-      email: formData.get("email"),
+      email: normalizeEmail(formData.get("email")),
       password: formData.get("password"),
       role: "PARENT",
       redirectTo: "/dashboard",
@@ -115,7 +131,7 @@ export async function registerTeacher(formData: FormData) {
 export async function loginTeacher(formData: FormData) {
   try {
     await signIn("credentials", {
-      email: formData.get("email"),
+      email: normalizeEmail(formData.get("email")),
       password: formData.get("password"),
       role: "TEACHER",
       redirectTo: "/teacher/dashboard",
@@ -135,7 +151,7 @@ export async function loginTeacher(formData: FormData) {
 export async function loginDevAdmin(formData: FormData) {
   try {
     await signIn("credentials", {
-      email: formData.get("email"),
+      email: normalizeEmail(formData.get("email")),
       password: formData.get("password"),
       role: "DEV_ADMIN",
       redirectTo: "/dev/console",

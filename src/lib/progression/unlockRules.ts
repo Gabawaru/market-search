@@ -39,3 +39,31 @@ export function isReadyForEvaluation(
 ): boolean {
   return attemptsCount >= level.minExerciseCount && masteryScore >= level.unlockThreshold;
 }
+
+/** Recalcule l'éligibilité côté serveur pour une compétence donnée — ne jamais faire
+ * confiance à un enfant qui déclencherait un démarrage d'évaluation directement via l'API. */
+export async function checkEvaluationEligibility(childId: string, skillId: string) {
+  const progress = await getOrCreateSkillProgress(childId, skillId);
+  if (!progress.currentLevelId) {
+    return { eligible: false, level: null as Level | null };
+  }
+  const level = await prisma.level.findUniqueOrThrow({ where: { id: progress.currentLevelId } });
+  const masteryScore = await recomputeMastery(childId, level.id);
+  const attemptsCount = await prisma.exerciseAttempt.count({
+    where: { childId, exerciseInstance: { exercise: { levelId: level.id } } },
+  });
+  return { eligible: isReadyForEvaluation(masteryScore, attemptsCount, level), level };
+}
+
+/** Avance l'enfant au niveau suivant de la compétence après une évaluation réussie. */
+export async function advanceToNextLevelIfPassed(childId: string, currentLevelId: string) {
+  const currentLevel = await prisma.level.findUniqueOrThrow({ where: { id: currentLevelId } });
+  const nextLevel = await prisma.level.findFirst({
+    where: { skillId: currentLevel.skillId, order: currentLevel.order + 1 },
+  });
+
+  await prisma.childSkillProgress.update({
+    where: { childId_skillId: { childId, skillId: currentLevel.skillId } },
+    data: { currentLevelId: nextLevel?.id ?? currentLevelId, masteryScore: 0 },
+  });
+}
