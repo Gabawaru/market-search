@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getChildSession } from "@/lib/auth/childSession";
 import { logoutChild } from "@/lib/actions/auth";
@@ -18,8 +19,15 @@ export default async function ChildHomePage() {
           </button>
         </form>
       </div>
+      <Link
+        href="/app/practice"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        S&apos;entraîner
+      </Link>
+
       <p className="text-sm text-gray-500">
-        Les exercices d&apos;entraînement et les évaluations arrivent dans les prochaines phases.
+        Les évaluations arrivent dans une prochaine phase.
       </p>
     </main>
   );
