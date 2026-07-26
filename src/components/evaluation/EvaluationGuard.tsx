@@ -64,6 +64,12 @@ export function EvaluationGuard({ skillId, skillName }: { skillId: string; skill
   const tokenRef = useRef<string | null>(null);
   const startedAtRef = useRef(0);
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Chaîne les envois d'IntegrityEvent les uns après les autres : la politique de récidive
+  // côté serveur compte les occurrences déjà enregistrées, donc deux violations rapprochées
+  // (ex. deux pertes de focus coup sur coup) doivent être POSTées dans l'ordre et l'une après
+  // l'autre — sinon la seconde peut arriver au serveur avant que la première soit persistée,
+  // et la récidive n'est jamais détectée.
+  const integrityQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const { requestFullscreen } = useFullscreenGuard();
   const active = phase === "running";
@@ -72,15 +78,20 @@ export function EvaluationGuard({ skillId, skillName }: { skillId: string; skill
   const reportIntegrityEvent = useCallback((type: ReportableEventType, attemptId?: string) => {
     if (!evaluationIdRef.current) return;
     setWarning(integrityMessage(type));
-    fetch(`/api/evaluations/${evaluationIdRef.current}/integrity-event`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type,
-        evaluationAttemptId: attemptId,
-        clientTimestamp: new Date().toISOString(),
-      }),
-    }).catch(() => {});
+    const evaluationId = evaluationIdRef.current;
+    integrityQueueRef.current = integrityQueueRef.current.then(() =>
+      fetch(`/api/evaluations/${evaluationId}/integrity-event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          evaluationAttemptId: attemptId,
+          clientTimestamp: new Date().toISOString(),
+        }),
+      })
+        .then(() => undefined)
+        .catch(() => undefined),
+    );
   }, []);
 
   useFullscreenExitGuard(
