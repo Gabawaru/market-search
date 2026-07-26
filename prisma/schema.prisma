@@ -1,0 +1,645 @@
+// Oumno Éducation — schéma de données
+// Voir /root/.claude/plans/cr-e-une-plateforme-cr-ant-dazzling-mitten.md pour le contexte produit.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Comptes
+// ---------------------------------------------------------------------------
+
+model Parent {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  children          Child[]
+  tutoringRequests  TutoringRequest[]
+  suggestionThreads SuggestionThread[]
+  chatThreads       ChatThreadParticipant[]
+  notifications     Notification[]
+}
+
+model Child {
+  id        String   @id @default(cuid())
+  parentId  String
+  parent    Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  name      String
+  pinHash   String
+  avatarKey String?
+  birthYear Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  skillProgress      ChildSkillProgress[]
+  exerciseAttempts   ExerciseAttempt[]
+  evaluations        Evaluation[]
+  integrityEvents    IntegrityEvent[]
+  badges             ChildBadge[]
+  streak             Streak?
+  writingProfile     ChildWritingProfile?
+  pointsWallet       PointsWallet?
+  rewardRedemptions  RewardRedemption[]
+  assessments        ChildAssessment[]
+  progressReports    ProgressReport[]
+  lessonStoryEntries LessonStoryEntry[]
+  tutoringRequests   TutoringRequest[]
+  suggestionThreads  SuggestionThread[]
+  chatThreads        ChatThreadParticipant[]
+
+  @@index([parentId])
+}
+
+model Teacher {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  name           String
+  bio            String?
+  ratePerSession Float?
+  verified       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  availabilities   TeacherAvailability[]
+  tutoringRequests TutoringRequest[]
+  chatThreads      ChatThreadParticipant[]
+  notifications    Notification[]
+}
+
+model TeacherAvailability {
+  id        String  @id @default(cuid())
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  weekday   Int // 0-6
+  startTime String // "HH:mm"
+  endTime   String // "HH:mm"
+
+  @@index([teacherId])
+}
+
+model DevAdmin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Contenu pédagogique (cœur Kumon)
+// ---------------------------------------------------------------------------
+
+model Subject {
+  id     String  @id @default(cuid())
+  code   String  @unique // "MATH"
+  name   String
+  skills Skill[]
+}
+
+model Skill {
+  id        String  @id @default(cuid())
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  code      String  @unique // "addition", "fractions"...
+  name      String
+  order     Int
+  minAge    Int
+
+  levels   Level[]
+  progress ChildSkillProgress[]
+
+  @@index([subjectId])
+}
+
+model Level {
+  id                      String @id @default(cuid())
+  skillId                 String
+  skill                   Skill  @relation(fields: [skillId], references: [id])
+  order                   Int
+  name                    String
+  unlockThreshold         Float  @default(0.9)
+  minExerciseCount        Int    @default(15)
+  evaluationExerciseCount Int    @default(10)
+  retryCooldownHours      Int    @default(24)
+
+  exercises        Exercise[]
+  evaluations      Evaluation[]
+  tutoringRequests TutoringRequest[]
+
+  @@unique([skillId, order])
+}
+
+enum ExerciseType {
+  MCQ
+  NUMERIC
+  FREE_TEXT
+}
+
+model Exercise {
+  id           String       @id @default(cuid())
+  levelId      String
+  level        Level        @relation(fields: [levelId], references: [id])
+  type         ExerciseType
+  generatorKey String
+  paramsSchema Json
+  staticPrompt String?
+  staticAnswer Json?
+  difficulty   Int          @default(1)
+  createdAt    DateTime     @default(now())
+
+  instances ExerciseInstance[]
+
+  @@index([levelId])
+}
+
+model ExerciseInstance {
+  id            String   @id @default(cuid())
+  exerciseId    String
+  exercise      Exercise @relation(fields: [exerciseId], references: [id])
+  seed          String
+  promptText    String
+  correctAnswer Json
+  createdAt     DateTime @default(now())
+
+  attempts           ExerciseAttempt[]
+  evaluationAttempts EvaluationAttempt[]
+
+  @@index([exerciseId])
+}
+
+model ChildSkillProgress {
+  id             String   @id @default(cuid())
+  childId        String
+  child          Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  skillId        String
+  skill          Skill    @relation(fields: [skillId], references: [id])
+  currentLevelId String?
+  masteryScore   Float    @default(0)
+  updatedAt      DateTime @updatedAt
+
+  @@unique([childId, skillId])
+}
+
+// PRACTICE uniquement — jamais touché par la logique anti-triche
+model ExerciseAttempt {
+  id                 String           @id @default(cuid())
+  childId            String
+  child              Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  exerciseInstanceId String
+  exerciseInstance   ExerciseInstance @relation(fields: [exerciseInstanceId], references: [id])
+  answerGiven        Json
+  isCorrect          Boolean
+  timeTakenMs        Int
+  createdAt          DateTime         @default(now())
+
+  @@index([childId])
+  @@index([exerciseInstanceId])
+}
+
+// ---------------------------------------------------------------------------
+// Évaluation & anti-triche
+// ---------------------------------------------------------------------------
+
+enum EvaluationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  INVALIDATED
+}
+
+model Evaluation {
+  id            String           @id @default(cuid())
+  childId       String
+  child         Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  levelId       String
+  level         Level            @relation(fields: [levelId], references: [id])
+  status        EvaluationStatus @default(NOT_STARTED)
+  sessionToken  String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  totalScore    Float?
+  passed        Boolean?
+  invalidReason String?
+  createdAt     DateTime         @default(now())
+
+  attempts        EvaluationAttempt[]
+  integrityEvents IntegrityEvent[]
+
+  @@index([childId])
+  @@index([levelId])
+}
+
+model EvaluationAttempt {
+  id                 String           @id @default(cuid())
+  evaluationId       String
+  evaluation         Evaluation       @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  exerciseInstanceId String
+  exerciseInstance   ExerciseInstance @relation(fields: [exerciseInstanceId], references: [id])
+  order              Int
+  answerGiven        Json?
+  isCorrect          Boolean?
+  scoreOverride      Float? // forcé à 0 par le serveur si triche détectée
+  suspicionScore     Float? // FREE_TEXT uniquement, sortie du détecteur IA
+  timeTakenMs        Int?
+  presentedAt        DateTime         @default(now())
+  answeredAt         DateTime?
+
+  @@unique([evaluationId, order])
+}
+
+enum IntegrityEventType {
+  FULLSCREEN_EXIT
+  VISIBILITY_HIDDEN
+  WINDOW_BLUR
+  DEVTOOLS_SUSPECTED
+  COPY_ATTEMPT
+  PASTE_ATTEMPT
+  AI_TEXT_SUSPECTED
+  SESSION_TOKEN_INVALID
+  HEARTBEAT_MISSED
+  MULTI_TAB_DETECTED
+}
+
+enum IntegritySeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IntegrityAction {
+  LOGGED_ONLY
+  WARNED
+  ZEROED_QUESTION
+  ZEROED_EVALUATION
+}
+
+model IntegrityEvent {
+  id                  String             @id @default(cuid())
+  evaluationId        String
+  evaluation          Evaluation         @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  evaluationAttemptId String?
+  childId             String
+  child               Child              @relation(fields: [childId], references: [id], onDelete: Cascade)
+  type                IntegrityEventType
+  severity            IntegritySeverity
+  actionTaken         IntegrityAction
+  metadata            Json?
+  clientTimestamp     DateTime?
+  serverTimestamp     DateTime           @default(now())
+  viewedByParentAt    DateTime?
+
+  @@index([evaluationId])
+  @@index([childId])
+}
+
+// Baseline personnelle d'écriture de l'enfant (calculée sur les réponses practice, non surveillées)
+model ChildWritingProfile {
+  id                String   @id @default(cuid())
+  childId           String   @unique
+  child             Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  avgWordLength     Float?
+  avgSentenceLength Float?
+  commonErrorRate   Float?
+  vocabComplexity   Float?
+  sampleCount       Int      @default(0)
+  updatedAt         DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Points, récompenses, encouragement
+// ---------------------------------------------------------------------------
+
+model PointsWallet {
+  id             String   @id @default(cuid())
+  childId        String   @unique
+  child          Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  balance        Int      @default(0)
+  lifetimeEarned Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  transactions PointsTransaction[]
+}
+
+enum PointsTransactionType {
+  EARNED_EXERCISE
+  EARNED_EVALUATION
+  EARNED_STREAK
+  EARNED_BADGE
+  SPENT_REWARD
+  ADJUSTMENT
+}
+
+model PointsTransaction {
+  id        String                @id @default(cuid())
+  walletId  String
+  wallet    PointsWallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type      PointsTransactionType
+  amount    Int // positif = gain, négatif = dépense
+  reason    String
+  createdAt DateTime              @default(now())
+
+  @@index([walletId])
+}
+
+model RewardCatalogItem {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  description String
+  cost        Int
+  icon        String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  redemptions RewardRedemption[]
+}
+
+model RewardRedemption {
+  id         String            @id @default(cuid())
+  childId    String
+  child      Child             @relation(fields: [childId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       RewardCatalogItem @relation(fields: [itemId], references: [id])
+  redeemedAt DateTime          @default(now())
+
+  @@index([childId])
+}
+
+model Badge {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  label       String
+  description String
+  icon        String
+  children    ChildBadge[]
+}
+
+model ChildBadge {
+  id       String   @id @default(cuid())
+  childId  String
+  child    Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  badgeId  String
+  badge    Badge    @relation(fields: [badgeId], references: [id])
+  earnedAt DateTime @default(now())
+
+  @@unique([childId, badgeId])
+}
+
+model Streak {
+  id               String    @id @default(cuid())
+  childId          String    @unique
+  child            Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  currentStreak    Int       @default(0)
+  longestStreak    Int       @default(0)
+  lastActivityDate DateTime?
+}
+
+// ---------------------------------------------------------------------------
+// Évaluation honnête et rapports narratifs
+// ---------------------------------------------------------------------------
+
+model ChildAssessment {
+  id             String   @id @default(cuid())
+  childId        String
+  child          Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  periodStart    DateTime
+  periodEnd      DateTime
+  objectiveScore Float // moyenne des scores d'évaluation sur la période
+  effortScore    Float // tentatives, régularité, progression vs baseline propre
+  narrative      String // texte honnête, personnalisé, sans favoritisme
+  generatedBy    String   @default("ai-scan") // "ai-scan" | "manual"
+  createdAt      DateTime @default(now())
+
+  @@index([childId])
+}
+
+model ProgressReport {
+  id          String   @id @default(cuid())
+  childId     String
+  child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  periodStart DateTime
+  periodEnd   DateTime
+  summary     Json
+  generatedAt DateTime @default(now())
+}
+
+model LessonStoryEntry {
+  id                  String   @id @default(cuid())
+  childId             String
+  child               Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  relatedEvaluationId String?
+  title               String
+  narrative           String // récit de ce qui s'est passé, pas un tableau de chiffres
+  highlights          Json? // points positifs/à travailler, structuré mais présenté narrativement
+  createdAt           DateTime @default(now())
+
+  @@index([childId])
+}
+
+// ---------------------------------------------------------------------------
+// Marketplace de cours particuliers + paiement simulé
+// ---------------------------------------------------------------------------
+
+enum TutoringRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  ACTIVE
+  ENDED
+}
+
+model TutoringRequest {
+  id            String                @id @default(cuid())
+  parentId      String
+  parent        Parent                @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  childId       String
+  child         Child                 @relation(fields: [childId], references: [id], onDelete: Cascade)
+  teacherId     String
+  teacher       Teacher               @relation(fields: [teacherId], references: [id])
+  targetLevelId String
+  targetLevel   Level                 @relation(fields: [targetLevelId], references: [id])
+  targetScore   Float // objectif de note (0-1) sur le niveau ciblé
+  proposedRate  Float
+  status        TutoringRequestStatus @default(PENDING)
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  payoutDecisions TutoringPayoutDecision[]
+
+  @@index([parentId])
+  @@index([childId])
+  @@index([teacherId])
+}
+
+enum PayoutDecisionStatus {
+  ELIGIBLE
+  NOT_ELIGIBLE
+}
+
+// Décision archivée et IMMUABLE : jamais de UPDATE, une correction crée une nouvelle ligne
+// référençant `supersedesId`. Objectif : empêcher toute contestation de sabotage ou de
+// favoritisme après-coup — la décision se base sur la trajectoire complète, pas un seul test.
+model TutoringPayoutDecision {
+  id                 String               @id @default(cuid())
+  tutoringRequestId  String
+  tutoringRequest    TutoringRequest      @relation(fields: [tutoringRequestId], references: [id], onDelete: Cascade)
+  periodStart        DateTime
+  periodEnd          DateTime
+  status             PayoutDecisionStatus
+  achievedScore      Float
+  effortScore        Float
+  amountSimulated    Float
+  explanation        String
+  assessmentSnapshot Json // snapshot des ChildAssessment/EvaluationAttempt pertinents
+  supersedesId       String?
+  decidedAt          DateTime             @default(now())
+
+  @@index([tutoringRequestId])
+}
+
+// ---------------------------------------------------------------------------
+// Messagerie
+// ---------------------------------------------------------------------------
+
+enum ChatThreadType {
+  CHILD_PARENT_TEACHER
+  PARENT_TEACHER_PRIVATE
+}
+
+model ChatThread {
+  id        String         @id @default(cuid())
+  type      ChatThreadType
+  childId   String? // null pour un fil PARENT_TEACHER_PRIVATE
+  createdAt DateTime       @default(now())
+
+  participants ChatThreadParticipant[]
+  messages     ChatMessage[]
+}
+
+enum ParticipantRole {
+  PARENT
+  CHILD
+  TEACHER
+}
+
+model ChatThreadParticipant {
+  id        String          @id @default(cuid())
+  threadId  String
+  thread    ChatThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role      ParticipantRole
+  parentId  String?
+  parent    Parent?         @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  childId   String?
+  child     Child?          @relation(fields: [childId], references: [id], onDelete: Cascade)
+  teacherId String?
+  teacher   Teacher?        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+}
+
+model ChatMessage {
+  id         String          @id @default(cuid())
+  threadId   String
+  thread     ChatThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderRole ParticipantRole
+  senderId   String
+  body       String
+  createdAt  DateTime        @default(now())
+
+  @@index([threadId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  parentId  String?
+  parent    Parent?   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  teacherId String?
+  teacher   Teacher?  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  type      String // "CHAT_MESSAGE" | "TUTORING_UPDATE" | ...
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([parentId])
+  @@index([teacherId])
+}
+
+// Boîte à suggestions parent/enfant, distincte de la messagerie enfant/prof/parent
+model SuggestionThread {
+  id        String   @id @default(cuid())
+  parentId  String?
+  parent    Parent?  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  childId   String?
+  child     Child?   @relation(fields: [childId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  messages SuggestionMessage[]
+}
+
+model SuggestionMessage {
+  id         String           @id @default(cuid())
+  threadId   String
+  thread     SuggestionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorRole ParticipantRole // PARENT | CHILD
+  body       String
+  createdAt  DateTime         @default(now())
+  scannedAt  DateTime? // renseigné quand le scan IA l'a synthétisée dans un digest
+
+  @@index([threadId])
+}
+
+// ---------------------------------------------------------------------------
+// Espace développeur & scan IA automatisé
+// ---------------------------------------------------------------------------
+
+enum DevSuggestionCategory {
+  CONTENT
+  DIFFICULTY
+  FEATURE
+  CODE
+}
+
+enum DevSuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
+}
+
+model DevSuggestion {
+  id          String                @id @default(cuid())
+  category    DevSuggestionCategory
+  title       String
+  description String
+  sourceData  Json? // ce qui a motivé la suggestion (stats, messages de suggestion, etc.)
+  status      DevSuggestionStatus   @default(PENDING)
+  prUrl       String?
+  createdAt   DateTime              @default(now())
+  reviewedAt  DateTime?
+
+  @@index([status])
+}
+
+// Trace de chaque passage du scan IA (3x/jour), pour audit et pour éviter les doublons
+model AiScanRun {
+  id                 String   @id @default(cuid())
+  runAt              DateTime @default(now())
+  childrenScanned    Int
+  suggestionsCreated Int
+  digestSentEmail    Boolean  @default(false)
+  digestSentSms      Boolean  @default(false)
+  summary            Json
+}
