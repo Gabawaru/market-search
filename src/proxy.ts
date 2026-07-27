@@ -13,7 +13,15 @@ export async function proxy(req: NextRequest) {
   const isChildArea = nextUrl.pathname.startsWith("/app");
 
   if (isParentArea || isTeacherArea || isDevArea) {
-    const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+    // secureCookie doit être fourni explicitement : sur Vercel, le runtime Edge du middleware
+    // ne détecte pas toujours correctement le HTTPS derrière le proxy, ce qui lui fait chercher
+    // le jeton sous le mauvais nom de cookie (sans le préfixe __Secure-) et échouer à le décoder
+    // silencieusement — la session semble alors "sauter" juste après la connexion.
+    const token = await getToken({
+      req,
+      secret: process.env.AUTH_SECRET,
+      secureCookie: nextUrl.protocol === "https:",
+    });
     const role = token?.role as string | undefined;
 
     if (isParentArea && role !== "PARENT") {
