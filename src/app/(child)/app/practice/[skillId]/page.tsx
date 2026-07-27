@@ -39,7 +39,7 @@ export default async function PracticeSkillPage({
         </Link>
       )}
 
-      <PracticeSession skillId={skill.id} />
+      <PracticeSession skillId={skill.id} childId={session.childId} />
     </main>
   );
 }

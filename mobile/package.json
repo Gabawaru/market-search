@@ -1,0 +1,16 @@
+{
+  "name": "oumno-education-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Coque native Capacitor (Android) pour Oumno Éducation — affiche le site en ligne, aucune copie du code embarquée.",
+  "scripts": {
+    "android": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/core": "^8.4.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2"
+  }
+}

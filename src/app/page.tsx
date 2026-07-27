@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { OumnoLogo } from "@/components/branding/OumnoLogo";
 
 export default function Home() {
@@ -17,6 +18,20 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      <figure className="overflow-hidden rounded-xl border">
+        <Image
+          src="/images/enfant-abaque.jpg"
+          alt="Enfant qui s'entraîne au calcul avec un boulier"
+          width={642}
+          height={600}
+          className="h-64 w-full object-cover"
+          priority
+        />
+        <figcaption className="px-4 py-2 text-xs text-gray-400">
+          Photo : Marianarulappa — Wikimedia Commons (CC BY-SA 3.0)
+        </figcaption>
+      </figure>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Link
