@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
-import useSWR from "swr";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { pickCorrectMessage, pickIncorrectMessage } from "@/lib/progression/feedbackMessages";
 
 interface ExercisePayload {
@@ -18,41 +17,129 @@ interface AttemptResult {
   currentStreak: number;
 }
 
-async function fetchExercise(url: string): Promise<ExercisePayload> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? "Impossible de charger l'exercice");
-  }
-  return res.json();
+interface PersistedState {
+  round: number;
+  answer: string;
+  exercise: ExercisePayload | null;
+  feedback: AttemptResult | null;
+  feedbackMessage: string;
 }
 
-export function PracticeSession({ skillId }: { skillId: string }) {
-  const [round, setRound] = useState(0);
-  const [answer, setAnswer] = useState("");
-  const [feedback, setFeedback] = useState<AttemptResult | null>(null);
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-  const startedAtRef = useRef(0);
+const DEFAULT_STATE: PersistedState = {
+  round: 0,
+  answer: "",
+  exercise: null,
+  feedback: null,
+  feedbackMessage: "",
+};
 
-  const {
-    data: exercise,
-    error,
-    isLoading,
-  } = useSWR<ExercisePayload>(`/api/exercises/next?skillId=${skillId}&round=${round}`, fetchExercise, {
-    revalidateOnFocus: false,
-    onSuccess: () => {
+// Session de practice persistée via localStorage (clé par enfant + compétence), pour ne rien
+// perdre si l'app est rechargée ou relancée (ex. mise en arrière-plan sur mobile). Exposée via
+// useSyncExternalStore plutôt qu'un simple useState+useEffect : la lecture de localStorage est
+// une vraie source externe, et getServerSnapshot renvoie l'état par défaut côté serveur, ce qui
+// évite tout écart d'hydratation entre le rendu serveur et le premier rendu client.
+const storeCache = new Map<string, PersistedState>();
+const storeListeners = new Map<string, Set<() => void>>();
+
+function storageKey(childId: string, skillId: string) {
+  return `oumno:practice-session:${childId}:${skillId}`;
+}
+
+function readFromLocalStorage(key: string): PersistedState {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as PersistedState) : DEFAULT_STATE;
+  } catch {
+    return DEFAULT_STATE;
+  }
+}
+
+function getSnapshot(key: string): PersistedState {
+  let value = storeCache.get(key);
+  if (!value) {
+    value = readFromLocalStorage(key);
+    storeCache.set(key, value);
+  }
+  return value;
+}
+
+function getServerSnapshot(): PersistedState {
+  return DEFAULT_STATE;
+}
+
+function subscribe(key: string, callback: () => void) {
+  if (!storeListeners.has(key)) storeListeners.set(key, new Set());
+  const set = storeListeners.get(key)!;
+  set.add(callback);
+  return () => set.delete(callback);
+}
+
+function setPersisted(key: string, state: PersistedState) {
+  storeCache.set(key, state);
+  try {
+    window.localStorage.setItem(key, JSON.stringify(state));
+  } catch {
+    // Stockage indisponible (navigation privée, quota dépassé...) : pas bloquant.
+  }
+  storeListeners.get(key)?.forEach((cb) => cb());
+}
+
+export function PracticeSession({ skillId, childId }: { skillId: string; childId: string }) {
+  const key = storageKey(childId, skillId);
+  const persisted = useSyncExternalStore(
+    (callback) => subscribe(key, callback),
+    () => getSnapshot(key),
+    getServerSnapshot,
+  );
+  const [error, setError] = useState<string | null>(null);
+  const startedAtRef = useRef(0);
+  const initialFetchDone = useRef(false);
+
+  async function loadExercise(currentRound: number, base: PersistedState) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/exercises/next?skillId=${skillId}&round=${currentRound}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Impossible de charger l'exercice");
+      }
+      const data: ExercisePayload = await res.json();
       startedAtRef.current = Date.now();
-    },
-  });
+      setPersisted(key, { ...base, round: currentRound, exercise: data });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur inconnue");
+    }
+  }
+
+  useEffect(() => {
+    if (initialFetchDone.current) return;
+    initialFetchDone.current = true;
+    if (persisted.exercise) {
+      startedAtRef.current = Date.now();
+      return;
+    }
+    // loadExercise ne met à jour l'état qu'après un fetch réseau (await) — un vrai effet de
+    // bord asynchrone, pas une dérivation synchrone d'état ; le lint ne distingue pas les deux.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadExercise(persisted.round, persisted);
+    // Ne doit s'exécuter qu'une fois par montage (voir initialFetchDone) : ne pas relancer un
+    // fetch à chaque changement de persisted/loadExercise.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, skillId]);
+
+  function handleAnswerChange(value: string) {
+    setPersisted(key, { ...persisted, answer: value });
+  }
 
   function handleNext() {
-    setFeedback(null);
-    setAnswer("");
-    setRound((r) => r + 1);
+    const cleared = { ...persisted, feedback: null, feedbackMessage: "", answer: "", exercise: null };
+    setPersisted(key, cleared);
+    void loadExercise(persisted.round + 1, cleared);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const { exercise, answer } = persisted;
     if (!exercise || !answer.trim()) return;
 
     const res = await fetch("/api/attempts", {
@@ -66,15 +153,19 @@ export function PracticeSession({ skillId }: { skillId: string }) {
     });
     if (!res.ok) return;
     const result: AttemptResult = await res.json();
-    setFeedback(result);
-    setFeedbackMessage(
-      result.isCorrect ? pickCorrectMessage() : pickIncorrectMessage(result.correctAnswer),
-    );
+    setPersisted(key, {
+      ...persisted,
+      feedback: result,
+      feedbackMessage: result.isCorrect
+        ? pickCorrectMessage()
+        : pickIncorrectMessage(result.correctAnswer),
+    });
   }
 
-  if (isLoading) return <p className="text-sm text-gray-500">Chargement...</p>;
-  if (error) return <p className="text-sm text-red-600">{(error as Error).message}</p>;
-  if (!exercise) return null;
+  const { exercise, answer, feedback, feedbackMessage } = persisted;
+
+  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (!exercise) return <p className="text-sm text-gray-500">Chargement...</p>;
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,7 +198,7 @@ export function PracticeSession({ skillId }: { skillId: string }) {
             inputMode="decimal"
             autoFocus
             value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
+            onChange={(e) => handleAnswerChange(e.target.value)}
             className="rounded-md border px-3 py-2 text-center text-xl"
             placeholder="Ta réponse"
           />

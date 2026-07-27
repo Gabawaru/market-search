@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Oumno Éducation</string>
+    <string name="title_activity_main">Oumno Éducation</string>
+    <string name="package_name">fr.oumnoeducation.app</string>
+    <string name="custom_url_scheme">fr.oumnoeducation.app</string>
+</resources>

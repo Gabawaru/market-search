@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export const metadata = {
   title: "À propos — Oumno Éducation",
@@ -26,6 +27,19 @@ export default function AboutPage() {
         n&apos;est traité sur la plateforme : les montants affichés pour les cours particuliers sont
         simulés, à titre indicatif pour les parents et les profs.
       </p>
+
+      <figure className="overflow-hidden rounded-xl border">
+        <Image
+          src="/images/enfant-cahier.jpg"
+          alt="Enfant concentré qui écrit dans un cahier"
+          width={1400}
+          height={1867}
+          className="h-72 w-full object-cover"
+        />
+        <figcaption className="px-4 py-2 text-xs text-gray-400">
+          Photo : Shixart1985 — Wikimedia Commons (CC BY 2.0)
+        </figcaption>
+      </figure>
 
       <h2 className="text-xl font-semibold">Comment ça marche</h2>
       <ul className="list-disc space-y-2 pl-5 text-gray-700">

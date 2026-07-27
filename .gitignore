@@ -52,3 +52,13 @@ next-env.d.ts
 /.windsurf/skills
 /.claude/skills
 /skills-lock.json
+
+# Capacitor Android (coque APK) : la clé de signature et ses mots de passe ne doivent jamais
+# être commités ; le reste du projet natif (android/) est suivi normalement.
+mobile/node_modules
+mobile/android/oumno-release.keystore
+mobile/android/keystore.properties
+mobile/android/.gradle
+mobile/android/build
+mobile/android/*/build
+mobile/android/local.properties

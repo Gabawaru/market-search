@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Projet natif Capacitor séparé (coque Android) : pas du code applicatif Next.js, pas
+    // couvert par cette config ESLint.
+    "mobile/**",
   ]),
 ]);
 
