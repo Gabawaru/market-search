@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PwaServiceWorker } from "@/components/PwaServiceWorker";
+import { ThemeScript } from "@/components/ThemeScript";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -41,8 +43,12 @@ export default function RootLayout({
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <ThemeScript />
+      </head>
       <body className="min-h-full flex flex-col">
         <PwaServiceWorker />
+        <ThemeToggle />
         {children}
       </body>
     </html>
