@@ -55,6 +55,9 @@ export default async function ParentDashboardPage() {
         <Link href="/child/select-profile" className="text-indigo-600 underline">
           Passer sur le profil d&apos;un enfant
         </Link>
+        <Link href="/dashboard/change-password" className="text-indigo-600 underline">
+          Changer le mot de passe
+        </Link>
       </div>
     </main>
   );

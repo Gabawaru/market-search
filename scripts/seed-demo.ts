@@ -15,14 +15,14 @@ function generatePin(): string {
 // direct que je n'ai pas depuis mon environnement de travail pour l'exécuter séparément). Il ne
 // régénère jamais un mot de passe/PIN déjà en place — sinon les identifiants déjà communiqués au
 // parent deviendraient invalides à chaque nouveau déploiement.
-const PARENT_DISPLAY_NAME = "Bory Khoy";
+const PARENT_DISPLAY_NAME = "Bory";
 
 async function main() {
   const parentEmail = process.env.DEMO_PARENT_EMAIL ?? "gabriel.carb.pro@gmail.com";
   let parent = await prisma.parent.findUnique({ where: { email: parentEmail } });
   if (parent) {
     // Le mot de passe existant n'est jamais touché ici — seul le nom affiché peut changer
-    // (demande de Gabriel de renommer ce compte parent en "Bory Khoy").
+    // (demande de Gabriel de renommer ce compte parent).
     if (parent.name !== PARENT_DISPLAY_NAME) {
       parent = await prisma.parent.update({
         where: { id: parent.id },
@@ -79,15 +79,27 @@ async function main() {
     console.log(`Prof     : ${parentEmail} / ${fixedTeacherPassword}`);
   }
 
-  const existingChildren = await prisma.child.findMany({
+  let existingChildren = await prisma.child.findMany({
     where: { parentId: parent.id },
     orderBy: { createdAt: "asc" },
   });
 
+  // Corrige l'orthographe d'un enfant déjà créé (garde le même PIN, ne recrée pas un doublon).
+  const childRenames: Record<string, string> = { Jérémy: "Jérémie" };
+  for (const [oldName, newName] of Object.entries(childRenames)) {
+    const toRename = existingChildren.find((c) => c.name === oldName);
+    const alreadyRenamed = existingChildren.some((c) => c.name === newName);
+    if (toRename && !alreadyRenamed) {
+      await prisma.child.update({ where: { id: toRename.id }, data: { name: newName } });
+      console.log(`Enfant   : ${oldName} renommé en "${newName}" (PIN inchangé)`);
+      existingChildren = existingChildren.map((c) => (c.id === toRename.id ? { ...c, name: newName } : c));
+    }
+  }
+
   const childSpecs = [
     { name: "Lina", birthYear: new Date().getFullYear() - 8 },
     { name: "Yanis", birthYear: new Date().getFullYear() - 10 },
-    { name: "Jérémy", birthYear: new Date().getFullYear() - 9 },
+    { name: "Jérémie", birthYear: new Date().getFullYear() - 9 },
     { name: "Nathan", birthYear: new Date().getFullYear() - 11 },
   ];
 
