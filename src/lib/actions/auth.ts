@@ -84,6 +84,29 @@ export async function logoutParent() {
   await signOut({ redirectTo: "/" });
 }
 
+export async function changeParentPassword(formData: FormData) {
+  const session = await auth();
+  if (session?.user.role !== "PARENT") {
+    redirect("/parent/login");
+  }
+
+  const parsed = passwordSchema.safeParse(formData.get("newPassword"));
+  if (!parsed.success) {
+    redirect(`/dashboard/change-password?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+  }
+
+  const parent = await prisma.parent.findUnique({ where: { id: session.user.id } });
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  if (!parent || !(await verifySecret(currentPassword, parent.passwordHash))) {
+    redirect(`/dashboard/change-password?error=${encodeURIComponent("Mot de passe actuel incorrect")}`);
+  }
+
+  const passwordHash = await hashSecret(parsed.data);
+  await prisma.parent.update({ where: { id: session.user.id }, data: { passwordHash } });
+
+  redirect("/dashboard");
+}
+
 // ---------------------------------------------------------------------------
 // Teacher
 // ---------------------------------------------------------------------------
@@ -121,9 +144,15 @@ export async function changeTeacherPassword(formData: FormData) {
     redirect("/teacher/login");
   }
 
-  const parsed = passwordSchema.safeParse(formData.get("password"));
+  const parsed = passwordSchema.safeParse(formData.get("newPassword"));
   if (!parsed.success) {
     redirect(`/teacher/change-password?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+  }
+
+  const teacher = await prisma.teacher.findUnique({ where: { id: session.user.id } });
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  if (!teacher || !(await verifySecret(currentPassword, teacher.passwordHash))) {
+    redirect(`/teacher/change-password?error=${encodeURIComponent("Mot de passe actuel incorrect")}`);
   }
 
   const passwordHash = await hashSecret(parsed.data);

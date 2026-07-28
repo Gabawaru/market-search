@@ -1,35 +1,32 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/db/prisma";
-import { changeTeacherPassword } from "@/lib/actions/auth";
+import { changeParentPassword } from "@/lib/actions/auth";
 
-export default async function TeacherChangePasswordPage({
+export default async function ParentChangePasswordPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
   const session = await auth();
-  if (session?.user.role !== "TEACHER") {
-    redirect("/teacher/login");
+  if (session?.user.role !== "PARENT") {
+    redirect("/parent/login");
   }
-
-  const teacher = await prisma.teacher.findUnique({ where: { id: session.user.id } });
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4">
       <div>
-        <h1 className="text-2xl font-bold">Changer le mot de passe</h1>
-        <p className="text-sm text-gray-500">
-          {teacher?.mustChangePassword
-            ? "Votre compte a été créé avec un mot de passe temporaire — définissez le vôtre avant de continuer."
-            : "Entrez votre mot de passe actuel puis le nouveau."}
-        </p>
+        <Link href="/dashboard" className="text-sm text-indigo-600 underline">
+          ← Retour
+        </Link>
+        <h1 className="mt-2 text-2xl font-bold">Changer le mot de passe</h1>
+        <p className="text-sm text-gray-500">Entrez votre mot de passe actuel puis le nouveau.</p>
       </div>
 
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-      <form action={changeTeacherPassword} className="flex flex-col gap-4">
+      <form action={changeParentPassword} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
           Mot de passe actuel
           <input
@@ -51,7 +48,7 @@ export default async function TeacherChangePasswordPage({
         </label>
         <button
           type="submit"
-          className="rounded-md bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700"
+          className="rounded-md bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-700"
         >
           Valider
         </button>
