@@ -4,6 +4,8 @@ import { getChildSession } from "@/lib/auth/childSession";
 import { logoutChild } from "@/lib/actions/auth";
 import { getOrCreateWallet } from "@/lib/progression/points";
 import { getOrCreateDailyRecommendation } from "@/lib/progression/recommendation";
+import { getStreakTimeline } from "@/lib/progression/streakTimeline";
+import { StreakTimeline } from "@/components/child/StreakTimeline";
 import { prisma } from "@/lib/db/prisma";
 
 export default async function ChildHomePage() {
@@ -12,10 +14,11 @@ export default async function ChildHomePage() {
     redirect("/child/select-profile");
   }
 
-  const [wallet, streak, dailyRecommendation] = await Promise.all([
+  const [wallet, streak, dailyRecommendation, streakTimeline] = await Promise.all([
     getOrCreateWallet(childSession.childId),
     prisma.streak.findUnique({ where: { childId: childSession.childId } }),
     getOrCreateDailyRecommendation(childSession.childId),
+    getStreakTimeline(childSession.childId),
   ]);
 
   return (
@@ -43,6 +46,8 @@ export default async function ChildHomePage() {
           <div className="text-xs text-gray-500">jours de suite</div>
         </div>
       </div>
+
+      <StreakTimeline days={streakTimeline} />
 
       {dailyRecommendation && (
         <Link
