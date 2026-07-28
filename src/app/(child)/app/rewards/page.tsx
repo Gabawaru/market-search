@@ -16,7 +16,7 @@ export default async function RewardsPage({
     redirect("/child/select-profile");
   }
 
-  const [wallet, streak, badges, catalog] = await Promise.all([
+  const [wallet, streak, badges, catalog, availableStreakFreezes] = await Promise.all([
     getOrCreateWallet(session.childId),
     prisma.streak.findUnique({ where: { childId: session.childId } }),
     prisma.childBadge.findMany({
@@ -25,6 +25,9 @@ export default async function RewardsPage({
       orderBy: { earnedAt: "desc" },
     }),
     prisma.rewardCatalogItem.findMany({ where: { active: true }, orderBy: { cost: "asc" } }),
+    prisma.rewardRedemption.count({
+      where: { childId: session.childId, consumedAt: null, item: { kind: "STREAK_FREEZE" } },
+    }),
   ]);
 
   return (
@@ -42,6 +45,10 @@ export default async function RewardsPage({
         <div className="flex-1 rounded-lg border p-4 text-center">
           <div className="text-3xl font-bold text-orange-500">{streak?.currentStreak ?? 0}🔥</div>
           <div className="text-sm text-gray-500">jours de suite</div>
+        </div>
+        <div className="flex-1 rounded-lg border p-4 text-center">
+          <div className="text-3xl font-bold text-emerald-600">{availableStreakFreezes}🌴</div>
+          <div className="text-sm text-gray-500">jours de pause</div>
         </div>
       </div>
 

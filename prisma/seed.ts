@@ -250,13 +250,21 @@ async function seedBadges() {
   console.log("Badges (seed) prêts.");
 }
 
-const REWARD_CATALOG: { code: string; label: string; description: string; cost: number; icon: string }[] = [
+const REWARD_CATALOG: {
+  code: string;
+  label: string;
+  description: string;
+  cost: number;
+  icon: string;
+  kind: "COSMETIC" | "STREAK_FREEZE";
+}[] = [
   {
     code: "pause_day",
     label: "Jour de pause",
-    description: "Un jour de pause qui ne casse pas ta série.",
+    description: "Un jour de pause qui ne casse pas ta série — utilisé automatiquement si tu manques un jour.",
     cost: 100,
     icon: "🌴",
+    kind: "STREAK_FREEZE",
   },
   {
     code: "avatar_star",
@@ -264,6 +272,7 @@ const REWARD_CATALOG: { code: string; label: string; description: string; cost: 
     description: "Une étoile qui brille sur ton profil.",
     cost: 50,
     icon: "⭐",
+    kind: "COSMETIC",
   },
   {
     code: "color_theme",
@@ -271,6 +280,7 @@ const REWARD_CATALOG: { code: string; label: string; description: string; cost: 
     description: "Débloque un thème de couleurs pour ton espace.",
     cost: 75,
     icon: "🎨",
+    kind: "COSMETIC",
   },
 ];
 

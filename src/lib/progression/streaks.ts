@@ -11,23 +11,37 @@ function startOfDay(date: Date): Date {
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Pure : calcule la nouvelle série à partir de la dernière activité connue. Séparée de
- * recordDailyActivity pour être testable sans base de données. */
+ * recordDailyActivity pour être testable sans base de données.
+ *
+ * "Jour de repos" (récompense STREAK_FREEZE, cf. RewardCatalogItem.kind) : si l'enfant a manqué
+ * exactement un jour (gap de 2) et dispose d'au moins un jour de repos non consommé, la série
+ * continue au lieu d'être remise à 1 — un seul jour de repos couvre un seul jour manqué, jamais
+ * plusieurs jours d'affilée (comportement volontairement simple et prévisible). */
 export function computeNextStreak(
   lastActivityDate: Date | null,
   now: Date,
   currentStreak: number,
-): { nextStreak: number; alreadyCountedToday: boolean } {
+  availableStreakFreezes = 0,
+): { nextStreak: number; alreadyCountedToday: boolean; freezeConsumed: boolean } {
   const today = startOfDay(now);
 
   if (lastActivityDate && startOfDay(lastActivityDate).getTime() === today.getTime()) {
-    return { nextStreak: currentStreak, alreadyCountedToday: true };
+    return { nextStreak: currentStreak, alreadyCountedToday: true, freezeConsumed: false };
   }
 
   const gapDays = lastActivityDate
     ? Math.round((today.getTime() - startOfDay(lastActivityDate).getTime()) / ONE_DAY_MS)
     : null;
 
-  return { nextStreak: gapDays === 1 ? currentStreak + 1 : 1, alreadyCountedToday: false };
+  if (gapDays === 1) {
+    return { nextStreak: currentStreak + 1, alreadyCountedToday: false, freezeConsumed: false };
+  }
+
+  if (gapDays === 2 && availableStreakFreezes > 0) {
+    return { nextStreak: currentStreak + 1, alreadyCountedToday: false, freezeConsumed: true };
+  }
+
+  return { nextStreak: 1, alreadyCountedToday: false, freezeConsumed: false };
 }
 
 /** À appeler à chaque activité (practice ou évaluation) : incrémente la série si l'enfant
@@ -43,13 +57,31 @@ export async function recordDailyActivity(childId: string) {
     return { currentStreak: 1 };
   }
 
-  const { nextStreak, alreadyCountedToday } = computeNextStreak(
+  const availableStreakFreezes = await prisma.rewardRedemption.count({
+    where: { childId, consumedAt: null, item: { kind: "STREAK_FREEZE" } },
+  });
+
+  const { nextStreak, alreadyCountedToday, freezeConsumed } = computeNextStreak(
     streak.lastActivityDate,
     now,
     streak.currentStreak,
+    availableStreakFreezes,
   );
   if (alreadyCountedToday) {
     return { currentStreak: streak.currentStreak };
+  }
+
+  if (freezeConsumed) {
+    const oldestFreeze = await prisma.rewardRedemption.findFirst({
+      where: { childId, consumedAt: null, item: { kind: "STREAK_FREEZE" } },
+      orderBy: { redeemedAt: "asc" },
+    });
+    if (oldestFreeze) {
+      await prisma.rewardRedemption.update({
+        where: { id: oldestFreeze.id },
+        data: { consumedAt: now },
+      });
+    }
   }
 
   const longestStreak = Math.max(streak.longestStreak, nextStreak);

@@ -41,21 +41,22 @@ model Child {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  skillProgress      ChildSkillProgress[]
-  exerciseAttempts   ExerciseAttempt[]
-  evaluations        Evaluation[]
-  integrityEvents    IntegrityEvent[]
-  badges             ChildBadge[]
-  streak             Streak?
-  writingProfile     ChildWritingProfile?
-  pointsWallet       PointsWallet?
-  rewardRedemptions  RewardRedemption[]
-  assessments        ChildAssessment[]
-  progressReports    ProgressReport[]
-  lessonStoryEntries LessonStoryEntry[]
-  tutoringRequests   TutoringRequest[]
-  suggestionThreads  SuggestionThread[]
-  chatThreads        ChatThreadParticipant[]
+  skillProgress        ChildSkillProgress[]
+  exerciseAttempts     ExerciseAttempt[]
+  evaluations          Evaluation[]
+  integrityEvents      IntegrityEvent[]
+  badges               ChildBadge[]
+  streak               Streak?
+  writingProfile       ChildWritingProfile?
+  pointsWallet         PointsWallet?
+  rewardRedemptions    RewardRedemption[]
+  assessments          ChildAssessment[]
+  progressReports      ProgressReport[]
+  lessonStoryEntries   LessonStoryEntry[]
+  tutoringRequests     TutoringRequest[]
+  suggestionThreads    SuggestionThread[]
+  chatThreads          ChatThreadParticipant[]
+  dailyRecommendations DailyRecommendation[]
 
   @@index([parentId])
 }
@@ -138,8 +139,9 @@ model Skill {
   order     Int
   minAge    Int
 
-  levels   Level[]
-  progress ChildSkillProgress[]
+  levels          Level[]
+  progress        ChildSkillProgress[]
+  recommendations DailyRecommendation[]
 
   @@index([subjectId])
 }
@@ -375,15 +377,24 @@ model PointsTransaction {
   @@index([walletId])
 }
 
+// COSMETIC : sans effet mécanique (juste échangée contre des points, ex. thème de couleurs).
+// STREAK_FREEZE : "jour de repos" — voir RewardRedemption.consumedAt et
+// src/lib/progression/streaks.ts (recordDailyActivity) pour l'effet réel sur la série.
+enum RewardCatalogItemKind {
+  COSMETIC
+  STREAK_FREEZE
+}
+
 model RewardCatalogItem {
-  id          String   @id @default(cuid())
-  code        String   @unique
+  id          String                @id @default(cuid())
+  code        String                @unique
   label       String
   description String
   cost        Int
   icon        String?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  kind        RewardCatalogItemKind @default(COSMETIC)
+  active      Boolean               @default(true)
+  createdAt   DateTime              @default(now())
 
   redemptions RewardRedemption[]
 }
@@ -395,6 +406,10 @@ model RewardRedemption {
   itemId     String
   item       RewardCatalogItem @relation(fields: [itemId], references: [id])
   redeemedAt DateTime          @default(now())
+  // Non-null une fois qu'un jour de repos (STREAK_FREEZE) a réellement protégé un jour manqué —
+  // seules les redemptions non consommées (consumedAt: null) sont disponibles à utiliser.
+  // Sans effet pour les récompenses COSMETIC.
+  consumedAt DateTime?
 
   @@index([childId])
 }
@@ -426,6 +441,23 @@ model Streak {
   currentStreak    Int       @default(0)
   longestStreak    Int       @default(0)
   lastActivityDate DateTime?
+}
+
+// "Cours du jour" façon Duolingo : une compétence recommandée par enfant et par jour civil,
+// calculée à la demande (voir src/lib/progression/recommendation.ts) — le index unique sur
+// [childId, date] fait qu'un nouveau jour calendaire déclenche naturellement un nouveau calcul,
+// sans tâche planifiée séparée à maintenir.
+model DailyRecommendation {
+  id        String   @id @default(cuid())
+  childId   String
+  child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id])
+  date      DateTime
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@unique([childId, date])
 }
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getChildSession } from "@/lib/auth/childSession";
 import { logoutChild } from "@/lib/actions/auth";
 import { getOrCreateWallet } from "@/lib/progression/points";
+import { getOrCreateDailyRecommendation } from "@/lib/progression/recommendation";
 import { prisma } from "@/lib/db/prisma";
 
 export default async function ChildHomePage() {
@@ -11,9 +12,10 @@ export default async function ChildHomePage() {
     redirect("/child/select-profile");
   }
 
-  const [wallet, streak] = await Promise.all([
+  const [wallet, streak, dailyRecommendation] = await Promise.all([
     getOrCreateWallet(childSession.childId),
     prisma.streak.findUnique({ where: { childId: childSession.childId } }),
+    getOrCreateDailyRecommendation(childSession.childId),
   ]);
 
   return (
@@ -41,6 +43,17 @@ export default async function ChildHomePage() {
           <div className="text-xs text-gray-500">jours de suite</div>
         </div>
       </div>
+
+      {dailyRecommendation && (
+        <Link
+          href={`/app/practice/${dailyRecommendation.skillId}`}
+          className="rounded-lg border border-indigo-300 bg-indigo-50 p-4 hover:bg-indigo-100"
+        >
+          <div className="text-xs uppercase tracking-wide text-indigo-500">Cours du jour</div>
+          <div className="text-lg font-semibold text-indigo-900">{dailyRecommendation.skill.name}</div>
+          <div className="text-sm text-indigo-700">{dailyRecommendation.reason}</div>
+        </Link>
+      )}
 
       <Link
         href="/app/practice"
