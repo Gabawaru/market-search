@@ -21,15 +21,15 @@ export default function Home() {
 
       <figure className="overflow-hidden rounded-xl border">
         <Image
-          src="/images/enfant-abaque.jpg"
-          alt="Enfant qui s'entraîne au calcul avec un boulier"
-          width={642}
-          height={600}
+          src="/images/enfant-calcul.jpg"
+          alt="Cahier de mathématiques et mains qui comptent sur les doigts"
+          width={1400}
+          height={933}
           className="h-64 w-full object-cover"
           priority
         />
         <figcaption className="px-4 py-2 text-xs text-gray-400">
-          Photo : Marianarulappa — Wikimedia Commons (CC BY-SA 3.0)
+          Photo : Jeuwre — Wikimedia Commons (CC BY-SA 4.0)
         </figcaption>
       </figure>
 

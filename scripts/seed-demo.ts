@@ -15,15 +15,27 @@ function generatePin(): string {
 // direct que je n'ai pas depuis mon environnement de travail pour l'exécuter séparément). Il ne
 // régénère jamais un mot de passe/PIN déjà en place — sinon les identifiants déjà communiqués au
 // parent deviendraient invalides à chaque nouveau déploiement.
+const PARENT_DISPLAY_NAME = "Bory Khoy";
+
 async function main() {
   const parentEmail = process.env.DEMO_PARENT_EMAIL ?? "gabriel.carb.pro@gmail.com";
   let parent = await prisma.parent.findUnique({ where: { email: parentEmail } });
   if (parent) {
-    console.log(`Parent   : ${parentEmail} (déjà configuré, mot de passe inchangé)`);
+    // Le mot de passe existant n'est jamais touché ici — seul le nom affiché peut changer
+    // (demande de Gabriel de renommer ce compte parent en "Bory Khoy").
+    if (parent.name !== PARENT_DISPLAY_NAME) {
+      parent = await prisma.parent.update({
+        where: { id: parent.id },
+        data: { name: PARENT_DISPLAY_NAME },
+      });
+      console.log(`Parent   : ${parentEmail} renommé en "${PARENT_DISPLAY_NAME}" (mot de passe inchangé)`);
+    } else {
+      console.log(`Parent   : ${parentEmail} (déjà configuré, mot de passe inchangé)`);
+    }
   } else {
     const parentPassword = generatePassword();
     parent = await prisma.parent.create({
-      data: { email: parentEmail, name: "Gabriel", passwordHash: await hashSecret(parentPassword) },
+      data: { email: parentEmail, name: PARENT_DISPLAY_NAME, passwordHash: await hashSecret(parentPassword) },
     });
     console.log(`Parent   : ${parentEmail} / ${parentPassword}`);
   }
@@ -47,6 +59,26 @@ async function main() {
     console.log(`Prof     : ${teacherEmail} / ${teacherPassword}`);
   }
 
+  // Second compte prof réel (même adresse que le compte parent) : mot de passe fixe demandé
+  // explicitement par Gabriel, pas généré aléatoirement comme le reste de ce script.
+  const existingSecondTeacher = await prisma.teacher.findUnique({ where: { email: parentEmail } });
+  if (existingSecondTeacher) {
+    console.log(`Prof     : ${parentEmail} (déjà configuré, mot de passe inchangé)`);
+  } else {
+    const fixedTeacherPassword = "12345678";
+    await prisma.teacher.create({
+      data: {
+        email: parentEmail,
+        name: "Gabriel",
+        passwordHash: await hashSecret(fixedTeacherPassword),
+        verified: true,
+        bio: "Compte prof.",
+        ratePerSession: 20,
+      },
+    });
+    console.log(`Prof     : ${parentEmail} / ${fixedTeacherPassword}`);
+  }
+
   const existingChildren = await prisma.child.findMany({
     where: { parentId: parent.id },
     orderBy: { createdAt: "asc" },
@@ -55,6 +87,8 @@ async function main() {
   const childSpecs = [
     { name: "Lina", birthYear: new Date().getFullYear() - 8 },
     { name: "Yanis", birthYear: new Date().getFullYear() - 10 },
+    { name: "Jérémy", birthYear: new Date().getFullYear() - 9 },
+    { name: "Nathan", birthYear: new Date().getFullYear() - 11 },
   ];
 
   for (const spec of childSpecs) {
