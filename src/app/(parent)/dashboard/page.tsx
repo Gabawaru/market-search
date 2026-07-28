@@ -58,6 +58,9 @@ export default async function ParentDashboardPage() {
         <Link href="/dashboard/change-password" className="text-indigo-600 underline">
           Changer le mot de passe
         </Link>
+        <Link href="/dashboard/change-email" className="text-indigo-600 underline">
+          Changer l&apos;email
+        </Link>
       </div>
     </main>
   );

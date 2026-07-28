@@ -12,6 +12,7 @@ import {
   childCreateSchema,
   childLoginSchema,
   passwordSchema,
+  emailSchema,
 } from "@/lib/validation/schemas";
 import { setChildSessionCookie, clearChildSessionCookie } from "@/lib/auth/childSession";
 
@@ -103,6 +104,35 @@ export async function changeParentPassword(formData: FormData) {
 
   const passwordHash = await hashSecret(parsed.data);
   await prisma.parent.update({ where: { id: session.user.id }, data: { passwordHash } });
+
+  redirect("/dashboard");
+}
+
+export async function changeParentEmail(formData: FormData) {
+  const session = await auth();
+  if (session?.user.role !== "PARENT") {
+    redirect("/parent/login");
+  }
+
+  const parsed = emailSchema.safeParse(formData.get("newEmail"));
+  if (!parsed.success) {
+    redirect(`/dashboard/change-email?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+  }
+
+  const parent = await prisma.parent.findUnique({ where: { id: session.user.id } });
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  if (!parent || !(await verifySecret(currentPassword, parent.passwordHash))) {
+    redirect(`/dashboard/change-email?error=${encodeURIComponent("Mot de passe actuel incorrect")}`);
+  }
+
+  try {
+    await prisma.parent.update({ where: { id: session.user.id }, data: { email: parsed.data } });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      redirect(`/dashboard/change-email?error=${encodeURIComponent("Un compte existe déjà avec cet email")}`);
+    }
+    throw error;
+  }
 
   redirect("/dashboard");
 }
