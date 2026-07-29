@@ -74,6 +74,44 @@ export async function respondTutoringRequest(formData: FormData) {
   redirect(`/teacher/dashboard/tutoring/${requestId}`);
 }
 
+const MIN_WEEKDAY = 0;
+const MAX_WEEKDAY = 6;
+
+export async function addTeacherAvailability(formData: FormData) {
+  const session = await auth();
+  if (session?.user.role !== "TEACHER") redirect("/teacher/login");
+
+  const weekdayRaw = getString(formData, "weekday");
+  const startTime = getString(formData, "startTime");
+  const endTime = getString(formData, "endTime");
+  if (!weekdayRaw || !startTime || !endTime) {
+    redirect("/teacher/dashboard/availability");
+  }
+
+  const weekday = Number(weekdayRaw);
+  if (!Number.isInteger(weekday) || weekday < MIN_WEEKDAY || weekday > MAX_WEEKDAY || startTime >= endTime) {
+    redirect("/teacher/dashboard/availability");
+  }
+
+  await prisma.teacherAvailability.create({
+    data: { teacherId: session.user.id, weekday, startTime, endTime },
+  });
+
+  redirect("/teacher/dashboard/availability");
+}
+
+export async function removeTeacherAvailability(formData: FormData) {
+  const session = await auth();
+  if (session?.user.role !== "TEACHER") redirect("/teacher/login");
+
+  const id = getString(formData, "id");
+  if (!id) redirect("/teacher/dashboard/availability");
+
+  await prisma.teacherAvailability.deleteMany({ where: { id, teacherId: session.user.id } });
+
+  redirect("/teacher/dashboard/availability");
+}
+
 export async function closeTutoringPeriod(formData: FormData) {
   const session = await auth();
   const requestId = getString(formData, "requestId");

@@ -26,6 +26,12 @@ export default async function TeacherDashboardPage() {
         Demandes de cours particuliers
       </Link>
       <Link
+        href="/teacher/dashboard/availability"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Mes disponibilités
+      </Link>
+      <Link
         href="/teacher/change-password"
         className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
       >
