@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { createTutoringRequest } from "@/lib/actions/tutoring";
+import { WEEKDAY_LABELS } from "@/lib/tutoring/weekdays";
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "En attente de réponse du prof",
@@ -30,7 +31,10 @@ export default async function TutoringPage({
       include: { teacher: true, targetLevel: { include: { skill: true } } },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.teacher.findMany({ orderBy: { name: "asc" } }),
+    prisma.teacher.findMany({
+      orderBy: { name: "asc" },
+      include: { availabilities: { orderBy: [{ weekday: "asc" }, { startTime: "asc" }] } },
+    }),
     prisma.level.findMany({ include: { skill: true }, orderBy: [{ skill: { order: "asc" } }, { order: "asc" }] }),
   ]);
 
@@ -60,6 +64,29 @@ export default async function TutoringPage({
             </Link>
           ))}
         </div>
+      )}
+
+      {teachers.length > 0 && (
+        <section className="flex flex-col gap-3 rounded-lg border p-4">
+          <h2 className="text-lg font-semibold">Disponibilités des profs</h2>
+          <ul className="flex flex-col gap-2 text-sm">
+            {teachers.map((t) => (
+              <li key={t.id}>
+                <span className="font-medium">{t.name}</span>
+                {t.availabilities.length === 0 ? (
+                  <span className="text-gray-500"> — aucun créneau renseigné</span>
+                ) : (
+                  <span className="text-gray-500">
+                    {" — "}
+                    {t.availabilities
+                      .map((a) => `${WEEKDAY_LABELS[a.weekday]} ${a.startTime}–${a.endTime}`)
+                      .join(", ")}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <section className="flex flex-col gap-3 rounded-lg border p-4">

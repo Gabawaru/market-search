@@ -112,3 +112,25 @@ body {
 .dark .text-indigo-900 {
   color: #e0e7ff;
 }
+
+@keyframes intro-logo {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes intro-step {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

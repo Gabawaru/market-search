@@ -1,10 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { OumnoLogo } from "@/components/branding/OumnoLogo";
+import { IntroAnimation } from "@/components/IntroAnimation";
 
 export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-6 py-16">
+      <IntroAnimation />
       <OumnoLogo size={36} withWordmark />
 
       <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
