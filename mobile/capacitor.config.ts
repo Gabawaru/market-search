@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
   appName: "Oumno Éducation",
   webDir: "www",
   server: {
-    url: "https://market-search-eta.vercel.app",
+    url: "https://oumno-education.vercel.app",
     cleartext: false,
   },
 };
