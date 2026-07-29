@@ -13,7 +13,8 @@ export default async function ParentRegisterPage({
       <div>
         <h1 className="text-2xl font-bold">Créer un compte parent</h1>
         <p className="text-sm text-gray-500">
-          Vous pourrez ensuite ajouter le profil de vos enfants.
+          Vous pourrez ensuite ajouter le profil de vos enfants. Un email ou un identifiant
+          suffit — vous pourrez ajouter l&apos;autre plus tard depuis votre tableau de bord.
         </p>
       </div>
 
@@ -27,8 +28,12 @@ export default async function ParentRegisterPage({
           <input type="text" name="name" required className="rounded-md border px-3 py-2" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input type="email" name="email" required className="rounded-md border px-3 py-2" />
+          Email (optionnel si vous choisissez un identifiant)
+          <input type="email" name="email" className="rounded-md border px-3 py-2" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Identifiant (optionnel si vous renseignez un email)
+          <input type="text" name="username" className="rounded-md border px-3 py-2" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Mot de passe

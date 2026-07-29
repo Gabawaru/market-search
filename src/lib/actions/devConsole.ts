@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { hashSecret } from "@/lib/auth/password";
+import { generateUsername } from "@/lib/auth/username";
 
 async function requireDevAdmin() {
   const session = await auth();
@@ -64,6 +65,7 @@ export async function approveTeacherApplication(formData: FormData) {
       data: {
         name: application.name,
         email: application.email,
+        username: generateUsername(application.name),
         passwordHash,
         mustChangePassword: true,
       },

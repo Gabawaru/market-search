@@ -11,6 +11,7 @@ async function createChildWithEvaluation(suffix: string) {
   const parent = await prisma.parent.create({
     data: {
       email: `integrity-test-${suffix}-${Date.now()}@example.com`,
+      username: `integrity-test-${suffix}-${Date.now()}`,
       passwordHash: await hashSecret("SuperSecret123"),
       name: `Parent ${suffix}`,
     },

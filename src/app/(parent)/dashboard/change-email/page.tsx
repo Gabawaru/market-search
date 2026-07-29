@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db/prisma";
 import { changeParentEmail } from "@/lib/actions/auth";
 
 export default async function ParentChangeEmailPage({
@@ -14,15 +15,21 @@ export default async function ParentChangeEmailPage({
     redirect("/parent/login");
   }
 
+  const parent = await prisma.parent.findUnique({ where: { id: session.user.id } });
+
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4">
       <div>
         <Link href="/dashboard" className="text-sm text-indigo-600 underline">
           ← Retour
         </Link>
-        <h1 className="mt-2 text-2xl font-bold">Changer l&apos;adresse email</h1>
+        <h1 className="mt-2 text-2xl font-bold">
+          {parent?.email ? "Changer l'adresse email" : "Ajouter une adresse email"}
+        </h1>
         <p className="text-sm text-gray-500">
-          Entrez votre mot de passe actuel puis la nouvelle adresse email.
+          {parent?.email
+            ? `Adresse actuelle : ${parent.email}. Entrez votre mot de passe actuel puis la nouvelle adresse.`
+            : "Vous n'avez pas encore d'email associé à votre compte (connexion par identifiant). Ajoutez-en un pour pouvoir aussi vous connecter avec, et recevoir un email en cas de mot de passe oublié."}
         </p>
       </div>
 

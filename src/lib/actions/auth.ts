@@ -6,6 +6,9 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { auth, signIn, signOut } from "@/auth";
 import { hashSecret, verifySecret } from "@/lib/auth/password";
+import { generateUsername } from "@/lib/auth/username";
+import { generateResetToken, hashResetToken, getAppBaseUrl, RESET_TOKEN_TTL_MS } from "@/lib/auth/resetToken";
+import { getEmailSender } from "@/lib/notifications";
 import {
   parentRegisterSchema,
   teacherApplicationSchema,
@@ -20,11 +23,28 @@ function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
-// Les emails sont stockés normalisés (trim + minuscules, cf. emailSchema) — la connexion
-// doit appliquer la même normalisation, sinon une casse différente de celle saisie à
-// l'inscription ferait échouer authorize() alors que le mot de passe est correct.
+function uniqueConstraintTarget(error: unknown): string {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    const target = error.meta?.target;
+    if (Array.isArray(target)) return target.join(",");
+    if (typeof target === "string") return target;
+  }
+  return "";
+}
+
+// Les emails/identifiants sont stockés normalisés (trim + minuscules) — la connexion doit
+// appliquer la même normalisation, sinon une casse différente de celle saisie à l'inscription
+// ferait échouer authorize() alors que le mot de passe est correct.
 function normalizeEmail(value: FormDataEntryValue | null): string {
   return (value ?? "").toString().trim().toLowerCase();
+}
+
+async function sendPasswordResetEmail(to: string, resetUrl: string) {
+  await getEmailSender().send({
+    to,
+    subject: "Réinitialisation de votre mot de passe — Oumno Éducation",
+    body: `Vous avez demandé la réinitialisation de votre mot de passe.\n\nCliquez sur ce lien (valable 1h) pour choisir un nouveau mot de passe :\n${resetUrl}\n\nSi vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.`,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -32,34 +52,50 @@ function normalizeEmail(value: FormDataEntryValue | null): string {
 // ---------------------------------------------------------------------------
 
 export async function registerParent(formData: FormData) {
+  const rawEmail = formData.get("email");
+  const rawUsername = formData.get("username");
   const parsed = parentRegisterSchema.safeParse({
     name: formData.get("name"),
-    email: formData.get("email"),
+    email: rawEmail ? rawEmail : undefined,
+    username: rawUsername ? rawUsername : undefined,
     password: formData.get("password"),
   });
   if (!parsed.success) {
     redirect(`/parent/register?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
   }
 
-  const { name, email, password } = parsed.data;
+  const { name, password } = parsed.data;
+  const email = parsed.data.email || undefined;
+  // Toujours un identifiant, même si l'utilisateur n'en a pas choisi un explicitement
+  // (Parent.username est NOT NULL) — dérivé du nom, avec un suffixe aléatoire pour l'unicité.
+  const username = parsed.data.username || generateUsername(name);
   const passwordHash = await hashSecret(password);
 
   try {
-    await prisma.parent.create({ data: { name, email, passwordHash } });
+    await prisma.parent.create({ data: { name, email, username, passwordHash } });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
-      redirect(`/parent/register?error=${encodeURIComponent("Un compte existe déjà avec cet email")}`);
+      const target = uniqueConstraintTarget(error);
+      const message = target.includes("username")
+        ? "Cet identifiant est déjà pris"
+        : "Un compte existe déjà avec cet email";
+      redirect(`/parent/register?error=${encodeURIComponent(message)}`);
     }
     throw error;
   }
 
-  // Utilise l'email normalisé (trim + minuscules) du schéma de validation, pas la valeur
-  // brute du formulaire — sinon la casse d'origine ne correspond plus à ce qui a été stocké.
+  // Utilise l'identifiant normalisé du schéma de validation, pas la valeur brute du formulaire —
+  // sinon la casse d'origine ne correspond plus à ce qui a été stocké.
   try {
-    await signIn("credentials", { email, password, role: "PARENT", redirectTo: "/dashboard" });
+    await signIn("credentials", {
+      identifier: email ?? username,
+      password,
+      role: "PARENT",
+      redirectTo: "/dashboard",
+    });
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(`/parent/login?error=${encodeURIComponent("Email ou mot de passe incorrect")}`);
+      redirect(`/parent/login?error=${encodeURIComponent("Identifiants incorrects")}`);
     }
     throw error;
   }
@@ -68,14 +104,14 @@ export async function registerParent(formData: FormData) {
 export async function loginParent(formData: FormData) {
   try {
     await signIn("credentials", {
-      email: normalizeEmail(formData.get("email")),
+      identifier: normalizeEmail(formData.get("identifier")),
       password: formData.get("password"),
       role: "PARENT",
       redirectTo: "/dashboard",
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(`/parent/login?error=${encodeURIComponent("Email ou mot de passe incorrect")}`);
+      redirect(`/parent/login?error=${encodeURIComponent("Identifiants incorrects")}`);
     }
     throw error;
   }
@@ -137,6 +173,56 @@ export async function changeParentEmail(formData: FormData) {
   redirect("/dashboard");
 }
 
+// Toujours la même redirection (succès générique), qu'un compte existe ou non avec l'email
+// saisi — révéler la différence permettrait de tester quelles adresses sont enregistrées.
+export async function requestParentPasswordReset(formData: FormData) {
+  const email = normalizeEmail(formData.get("email"));
+  if (email) {
+    const parent = await prisma.parent.findUnique({ where: { email } });
+    if (parent) {
+      const token = generateResetToken();
+      await prisma.passwordResetToken.create({
+        data: {
+          parentId: parent.id,
+          tokenHash: hashResetToken(token),
+          expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+        },
+      });
+      try {
+        await sendPasswordResetEmail(email, `${getAppBaseUrl()}/parent/reset-password?token=${token}`);
+      } catch (error) {
+        console.error("[auth] échec envoi email de réinitialisation (parent) :", error);
+      }
+    }
+  }
+  redirect("/parent/forgot-password?success=1");
+}
+
+export async function resetParentPassword(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+  const parsed = passwordSchema.safeParse(formData.get("newPassword"));
+  if (!parsed.success) {
+    redirect(
+      `/parent/reset-password?token=${encodeURIComponent(token)}&error=${encodeURIComponent(parsed.error.issues[0].message)}`,
+    );
+  }
+
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashResetToken(token) },
+  });
+  if (!resetToken || !resetToken.parentId || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+    redirect(`/parent/reset-password?error=${encodeURIComponent("Ce lien est invalide ou a expiré")}`);
+  }
+
+  const passwordHash = await hashSecret(parsed.data);
+  await prisma.$transaction([
+    prisma.parent.update({ where: { id: resetToken.parentId }, data: { passwordHash } }),
+    prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
+  ]);
+
+  redirect("/parent/login?success=1");
+}
+
 // ---------------------------------------------------------------------------
 // Teacher
 // ---------------------------------------------------------------------------
@@ -194,17 +280,94 @@ export async function changeTeacherPassword(formData: FormData) {
   redirect("/teacher/dashboard");
 }
 
+export async function changeTeacherEmail(formData: FormData) {
+  const session = await auth();
+  if (session?.user.role !== "TEACHER") {
+    redirect("/teacher/login");
+  }
+
+  const parsed = emailSchema.safeParse(formData.get("newEmail"));
+  if (!parsed.success) {
+    redirect(`/teacher/change-email?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+  }
+
+  const teacher = await prisma.teacher.findUnique({ where: { id: session.user.id } });
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  if (!teacher || !(await verifySecret(currentPassword, teacher.passwordHash))) {
+    redirect(`/teacher/change-email?error=${encodeURIComponent("Mot de passe actuel incorrect")}`);
+  }
+
+  try {
+    await prisma.teacher.update({ where: { id: session.user.id }, data: { email: parsed.data } });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      redirect(`/teacher/change-email?error=${encodeURIComponent("Un compte existe déjà avec cet email")}`);
+    }
+    throw error;
+  }
+
+  redirect("/teacher/dashboard");
+}
+
+export async function requestTeacherPasswordReset(formData: FormData) {
+  const email = normalizeEmail(formData.get("email"));
+  if (email) {
+    const teacher = await prisma.teacher.findUnique({ where: { email } });
+    if (teacher) {
+      const token = generateResetToken();
+      await prisma.passwordResetToken.create({
+        data: {
+          teacherId: teacher.id,
+          tokenHash: hashResetToken(token),
+          expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+        },
+      });
+      try {
+        await sendPasswordResetEmail(email, `${getAppBaseUrl()}/teacher/reset-password?token=${token}`);
+      } catch (error) {
+        console.error("[auth] échec envoi email de réinitialisation (prof) :", error);
+      }
+    }
+  }
+  redirect("/teacher/forgot-password?success=1");
+}
+
+export async function resetTeacherPassword(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+  const parsed = passwordSchema.safeParse(formData.get("newPassword"));
+  if (!parsed.success) {
+    redirect(
+      `/teacher/reset-password?token=${encodeURIComponent(token)}&error=${encodeURIComponent(parsed.error.issues[0].message)}`,
+    );
+  }
+
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashResetToken(token) },
+  });
+  if (!resetToken || !resetToken.teacherId || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+    redirect(`/teacher/reset-password?error=${encodeURIComponent("Ce lien est invalide ou a expiré")}`);
+  }
+
+  const passwordHash = await hashSecret(parsed.data);
+  await prisma.$transaction([
+    prisma.teacher.update({ where: { id: resetToken.teacherId }, data: { passwordHash, mustChangePassword: false } }),
+    prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
+  ]);
+
+  redirect("/teacher/login?success=1");
+}
+
 export async function loginTeacher(formData: FormData) {
   try {
     await signIn("credentials", {
-      email: normalizeEmail(formData.get("email")),
+      identifier: normalizeEmail(formData.get("identifier")),
       password: formData.get("password"),
       role: "TEACHER",
       redirectTo: "/teacher/dashboard",
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(`/teacher/login?error=${encodeURIComponent("Email ou mot de passe incorrect")}`);
+      redirect(`/teacher/login?error=${encodeURIComponent("Identifiants incorrects")}`);
     }
     throw error;
   }
@@ -217,14 +380,14 @@ export async function loginTeacher(formData: FormData) {
 export async function loginDevAdmin(formData: FormData) {
   try {
     await signIn("credentials", {
-      email: normalizeEmail(formData.get("email")),
+      identifier: normalizeEmail(formData.get("email")),
       password: formData.get("password"),
       role: "DEV_ADMIN",
       redirectTo: "/dev/console",
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(`/dev/login?error=${encodeURIComponent("Email ou mot de passe incorrect")}`);
+      redirect(`/dev/login?error=${encodeURIComponent("Identifiants incorrects")}`);
     }
     throw error;
   }
