@@ -31,6 +31,12 @@ export default async function TeacherDashboardPage() {
       >
         Changer le mot de passe
       </Link>
+      <Link
+        href="/teacher/change-email"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Changer l&apos;email
+      </Link>
     </main>
   );
 }

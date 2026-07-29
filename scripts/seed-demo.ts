@@ -11,6 +11,23 @@ function generatePin(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
+const COMBINING_DIACRITICS = /[\u0300-\u036f]/g;
+
+// Duplique lib/actions/auth.ts::generateUsername — ce script tourne en tsx standalone (build
+// Vercel), pas dans le bundle Next.js, donc autant garder sa propre copie plutôt que dépendre
+// d'un chemin d'import qui pourrait ne pas se résoudre pareil hors de l'app.
+function generateUsername(base: string): string {
+  const slug =
+    base
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(COMBINING_DIACRITICS, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 20) || "compte";
+  return `${slug}-${randomBytes(3).toString("hex")}`;
+}
+
 // Idempotent par conception : ce script tourne à chaque build (Vercel n'a pas besoin d'un accès
 // direct que je n'ai pas depuis mon environnement de travail pour l'exécuter séparément). Il ne
 // régénère jamais un mot de passe/PIN déjà en place — sinon les identifiants déjà communiqués au
@@ -35,7 +52,12 @@ async function main() {
   } else {
     const parentPassword = generatePassword();
     parent = await prisma.parent.create({
-      data: { email: parentEmail, name: PARENT_DISPLAY_NAME, passwordHash: await hashSecret(parentPassword) },
+      data: {
+        email: parentEmail,
+        name: PARENT_DISPLAY_NAME,
+        username: generateUsername(PARENT_DISPLAY_NAME),
+        passwordHash: await hashSecret(parentPassword),
+      },
     });
     console.log(`Parent   : ${parentEmail} / ${parentPassword}`);
   }
@@ -50,6 +72,7 @@ async function main() {
       data: {
         email: teacherEmail,
         name: "Prof Démo",
+        username: generateUsername("Prof Démo"),
         passwordHash: await hashSecret(teacherPassword),
         verified: true,
         bio: "Compte prof de démonstration.",
@@ -70,6 +93,7 @@ async function main() {
       data: {
         email: parentEmail,
         name: "Gabriel",
+        username: generateUsername("Gabriel"),
         passwordHash: await hashSecret(fixedTeacherPassword),
         verified: true,
         bio: "Compte prof.",

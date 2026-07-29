@@ -33,18 +33,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       id: "credentials",
       name: "Identifiants",
       credentials: {
-        email: { label: "Email", type: "email" },
+        // Accepte un email ou un identifiant (username) — un compte parent/prof peut ne pas
+        // avoir d'email (voir Parent.email nullable), auquel cas seul l'identifiant fonctionne.
+        identifier: { label: "Email ou identifiant", type: "text" },
         password: { label: "Mot de passe", type: "password" },
         role: { label: "Rôle", type: "text" },
       },
       async authorize(credentials) {
-        const email = credentials?.email as string | undefined;
+        const identifier = (credentials?.identifier as string | undefined)?.trim().toLowerCase();
         const password = credentials?.password as string | undefined;
         const role = credentials?.role as AppRole | undefined;
-        if (!email || !password || !role) return null;
+        if (!identifier || !password || !role) return null;
 
         if (role === "PARENT") {
-          const parent = await prisma.parent.findUnique({ where: { email } });
+          const parent = await prisma.parent.findFirst({
+            where: { OR: [{ email: identifier }, { username: identifier }] },
+          });
           if (!parent) return null;
           const valid = await verifySecret(password, parent.passwordHash);
           if (!valid) return null;
@@ -52,7 +56,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         if (role === "TEACHER") {
-          const teacher = await prisma.teacher.findUnique({ where: { email } });
+          const teacher = await prisma.teacher.findFirst({
+            where: { OR: [{ email: identifier }, { username: identifier }] },
+          });
           if (!teacher) return null;
           const valid = await verifySecret(password, teacher.passwordHash);
           if (!valid) return null;
@@ -65,7 +71,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         if (role === "DEV_ADMIN") {
-          const devAdmin = await prisma.devAdmin.findUnique({ where: { email } });
+          const devAdmin = await prisma.devAdmin.findUnique({ where: { email: identifier } });
           if (!devAdmin) return null;
           const valid = await verifySecret(password, devAdmin.passwordHash);
           if (!valid) return null;

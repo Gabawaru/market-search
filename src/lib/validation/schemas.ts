@@ -7,12 +7,35 @@ export const passwordSchema = z
 export const pinSchema = z
   .string()
   .regex(/^\d{4,6}$/, "Le code PIN doit contenir entre 4 et 6 chiffres");
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "L'identifiant doit contenir au moins 3 caractères")
+  .max(30, "L'identifiant doit contenir au plus 30 caractères")
+  .regex(/^[a-z0-9_.-]+$/, "Lettres, chiffres, points, tirets et underscores uniquement");
 
-export const parentRegisterSchema = z.object({
-  name: z.string().trim().min(1, "Le nom est requis"),
-  email: emailSchema,
-  password: passwordSchema,
-});
+// L'inscription n'exige plus d'email : un identifiant seul suffit (email ajoutable plus tard
+// depuis le tableau de bord, voir changeParentEmail/addParentEmail dans lib/actions/auth.ts).
+export const parentRegisterSchema = z
+  .object({
+    name: z.string().trim().min(1, "Le nom est requis"),
+    email: z.string().trim().toLowerCase().optional(),
+    username: z.string().trim().toLowerCase().optional(),
+    password: passwordSchema,
+  })
+  .refine((data) => Boolean(data.email) || Boolean(data.username), {
+    message: "Renseigne un email ou un identifiant",
+    path: ["username"],
+  })
+  .refine((data) => !data.email || emailSchema.safeParse(data.email).success, {
+    message: "Adresse email invalide",
+    path: ["email"],
+  })
+  .refine((data) => !data.username || usernameSchema.safeParse(data.username).success, {
+    message: "Identifiant invalide (3-30 caractères : lettres, chiffres, points, tirets, underscores)",
+    path: ["username"],
+  });
 
 export const teacherApplicationSchema = z.object({
   name: z.string().trim().min(1, "Le nom est requis"),

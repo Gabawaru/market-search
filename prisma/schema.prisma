@@ -17,17 +17,21 @@ datasource db {
 
 model Parent {
   id           String   @id @default(cuid())
-  email        String   @unique
+  // Un des deux (email, username) doit être renseigné — l'inscription n'exige plus d'email,
+  // voir registerParent. authorize() dans src/auth.ts accepte l'un ou l'autre pour se connecter.
+  email        String?  @unique
+  username     String   @unique
   passwordHash String
   name         String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  children          Child[]
-  tutoringRequests  TutoringRequest[]
-  suggestionThreads SuggestionThread[]
-  chatThreads       ChatThreadParticipant[]
-  notifications     Notification[]
+  children            Child[]
+  tutoringRequests    TutoringRequest[]
+  suggestionThreads   SuggestionThread[]
+  chatThreads         ChatThreadParticipant[]
+  notifications       Notification[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Child {
@@ -64,6 +68,9 @@ model Child {
 model Teacher {
   id                 String   @id @default(cuid())
   email              String   @unique
+  // Généré à la création (candidature approuvée) — permet une connexion par identifiant en plus
+  // de l'email, cohérent avec le compte parent (voir Parent.username).
+  username           String   @unique
   passwordHash       String
   name               String
   bio                String?
@@ -75,10 +82,11 @@ model Teacher {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  availabilities   TeacherAvailability[]
-  tutoringRequests TutoringRequest[]
-  chatThreads      ChatThreadParticipant[]
-  notifications    Notification[]
+  availabilities      TeacherAvailability[]
+  tutoringRequests    TutoringRequest[]
+  chatThreads         ChatThreadParticipant[]
+  notifications       Notification[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 enum TeacherApplicationStatus {
@@ -117,6 +125,25 @@ model DevAdmin {
   passwordHash String
   name         String
   createdAt    DateTime @default(now())
+}
+
+// Jeton de réinitialisation de mot de passe (parent OU prof — un seul des deux renseigné),
+// à usage unique (usedAt), courte durée de vie. Le token lui-même n'est jamais stocké en clair,
+// seul son hash (même fonction que les mots de passe) — comme ça, un accès en lecture à la base
+// ne suffit pas à réinitialiser un compte à la place de son propriétaire.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  parentId  String?
+  parent    Parent?   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  teacherId String?
+  teacher   Teacher?  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([parentId])
+  @@index([teacherId])
 }
 
 // ---------------------------------------------------------------------------
