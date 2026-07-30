@@ -6,6 +6,7 @@ import { getOrCreateWallet } from "@/lib/progression/points";
 import { getOrCreateDailyRecommendation } from "@/lib/progression/recommendation";
 import { getStreakTimeline } from "@/lib/progression/streakTimeline";
 import { StreakTimeline } from "@/components/child/StreakTimeline";
+import { ContentOriginBadge } from "@/components/ContentOriginBadge";
 import { prisma } from "@/lib/db/prisma";
 
 export default async function ChildHomePage() {
@@ -62,9 +63,10 @@ export default async function ChildHomePage() {
 
       <Link
         href="/app/practice"
-        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+        className="flex flex-col items-center gap-2 rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
       >
         S&apos;entraîner
+        <ContentOriginBadge origin="generated" />
       </Link>
       <Link
         href="/app/rewards"
@@ -74,9 +76,10 @@ export default async function ChildHomePage() {
       </Link>
       <Link
         href="/app/teacher-exercises"
-        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+        className="flex flex-col items-center gap-2 rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
       >
         Exercices de mes profs
+        <ContentOriginBadge origin="teacher" />
       </Link>
       <Link
         href="/app/messages"

@@ -4,6 +4,7 @@ import { getChildSession } from "@/lib/auth/childSession";
 import { prisma } from "@/lib/db/prisma";
 import { checkTeacherExerciseAccess } from "@/lib/progression/teacherExercises";
 import { submitTeacherExerciseAnswer } from "@/lib/actions/teacherExercises";
+import { ContentOriginBadge } from "@/components/ContentOriginBadge";
 
 export default async function TeacherExerciseDetailPage({
   params,
@@ -27,10 +28,13 @@ export default async function TeacherExerciseDetailPage({
     include: { skill: true },
   });
 
-  const submissions = await prisma.teacherExerciseSubmission.findMany({
-    where: { teacherExerciseId: exerciseId, childId: session.childId },
-    orderBy: { createdAt: "desc" },
-  });
+  const [teacher, submissions] = await Promise.all([
+    prisma.teacher.findUnique({ where: { id: exercise.teacherId } }),
+    prisma.teacherExerciseSubmission.findMany({
+      where: { teacherExerciseId: exerciseId, childId: session.childId },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-12">
@@ -41,6 +45,7 @@ export default async function TeacherExerciseDetailPage({
       <p className="text-sm text-gray-500">
         {level.skill.name} — {level.name}
       </p>
+      <ContentOriginBadge origin="teacher" authorName={teacher?.name} className="self-start" />
       <p className="whitespace-pre-wrap rounded-lg border p-4">{exercise.promptText}</p>
 
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
