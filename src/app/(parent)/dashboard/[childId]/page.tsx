@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { gradeEvaluationAttempt } from "@/lib/actions/assessment";
 import { isStrugglingWithSkill } from "@/lib/progression/unlockRules";
+import { listPendingHelpRequestsForChild } from "@/lib/progression/helpRequests";
+import { dismissHelpRequest } from "@/lib/actions/help";
 
 export default async function ChildDetailPage({
   params,
@@ -23,8 +25,16 @@ export default async function ChildDetailPage({
     redirect("/dashboard");
   }
 
-  const [skillProgress, streak, badges, wallet, recentStories, unreadIntegrityCount, teacherSubmissions] =
-    await Promise.all([
+  const [
+    skillProgress,
+    streak,
+    badges,
+    wallet,
+    recentStories,
+    unreadIntegrityCount,
+    teacherSubmissions,
+    helpRequests,
+  ] = await Promise.all([
       prisma.childSkillProgress.findMany({
         where: { childId },
         include: { skill: true },
@@ -45,6 +55,7 @@ export default async function ChildDetailPage({
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
+      listPendingHelpRequestsForChild(session.user.id, childId),
     ]);
 
   // Réponses libres d'évaluation jamais notées automatiquement (voir submitEvaluationAnswer) —
@@ -144,6 +155,39 @@ export default async function ChildDetailPage({
           </div>
         )}
       </section>
+
+      {helpRequests.length > 0 && (
+        <section className="flex flex-col gap-3 rounded-lg border border-sky-300 bg-sky-50 p-4">
+          <h2 className="text-lg font-semibold text-sky-900">
+            {child.name} a demandé de l&apos;aide
+          </h2>
+          <p className="text-sm text-sky-800">
+            Depuis son entraînement, {child.name} a signalé un blocage sur{" "}
+            {helpRequests.map((request) => request.skillName).join(", ")}. Vous pouvez en discuter
+            ensemble, ou faire appel à un vrai prof particulier.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href={`/dashboard/${child.id}/tutoring`}
+              className="rounded-md bg-sky-600 px-3 py-2 text-sm text-white hover:bg-sky-700"
+            >
+              Voir les profs disponibles
+            </Link>
+            {helpRequests.map((request) => (
+              <form key={request.id} action={dismissHelpRequest}>
+                <input type="hidden" name="notificationId" value={request.id} />
+                <input type="hidden" name="childId" value={child.id} />
+                <button
+                  type="submit"
+                  className="rounded-md border border-sky-300 bg-white px-3 py-2 text-sm hover:bg-sky-100"
+                >
+                  J&apos;ai vu ({request.skillName})
+                </button>
+              </form>
+            ))}
+          </div>
+        </section>
+      )}
 
       {strugglingSkills.length > 0 && (
         <section className="flex flex-col gap-3 rounded-lg border border-indigo-300 bg-indigo-50 p-4">
