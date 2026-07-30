@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
+import { gradeEvaluationAttempt } from "@/lib/actions/assessment";
 
 export default async function ChildDetailPage({
   params,
@@ -21,7 +22,7 @@ export default async function ChildDetailPage({
     redirect("/dashboard");
   }
 
-  const [skillProgress, streak, badges, wallet, recentStories, unreadIntegrityCount] =
+  const [skillProgress, streak, badges, wallet, recentStories, unreadIntegrityCount, teacherSubmissions] =
     await Promise.all([
       prisma.childSkillProgress.findMany({
         where: { childId },
@@ -37,14 +38,36 @@ export default async function ChildDetailPage({
         take: 5,
       }),
       prisma.integrityEvent.count({ where: { childId, viewedByParentAt: null } }),
+      prisma.teacherExerciseSubmission.findMany({
+        where: { childId },
+        include: { teacherExercise: { include: { teacher: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
     ]);
+
+  // Réponses libres d'évaluation jamais notées automatiquement (voir submitEvaluationAnswer) —
+  // scoreOverride: null exclut celles déjà zérées par l'anti-triche, à ne jamais réviser ici.
+  const pendingFreeTextAttempts = await prisma.evaluationAttempt.findMany({
+    where: {
+      isCorrect: null,
+      scoreOverride: null,
+      evaluation: { childId, status: "COMPLETED" },
+      exerciseInstance: { exercise: { type: "FREE_TEXT" } },
+    },
+    include: { exerciseInstance: true },
+    orderBy: { presentedAt: "desc" },
+  });
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-12">
       <Link href="/dashboard" className="text-sm text-indigo-600 underline">
         ← Retour
       </Link>
-      <h1 className="text-2xl font-bold">{child.name}</h1>
+      <h1 className="text-2xl font-bold">
+        {child.name}
+        {child.gradeLevel && <span className="ml-2 text-base font-normal text-gray-500">({child.gradeLevel})</span>}
+      </h1>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border p-3 text-center">
@@ -105,6 +128,68 @@ export default async function ChildDetailPage({
           </div>
         )}
       </section>
+
+      {pendingFreeTextAttempts.length > 0 && (
+        <section className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4">
+          <h2 className="text-lg font-semibold">Réponses à corriger</h2>
+          <p className="text-sm text-gray-600">
+            Ces réponses libres d&apos;évaluation ne sont jamais notées automatiquement par
+            l&apos;IA — elles comptent comme fausses tant que vous ne les corrigez pas.
+          </p>
+          <div className="flex flex-col gap-3">
+            {pendingFreeTextAttempts.map((attempt) => {
+              const answer = attempt.answerGiven as { value?: string } | null;
+              return (
+                <div key={attempt.id} className="rounded-lg border bg-white p-3">
+                  <p className="text-sm text-gray-500">{attempt.exerciseInstance.promptText}</p>
+                  <p className="mt-1 whitespace-pre-wrap font-medium">{answer?.value ?? ""}</p>
+                  <form action={gradeEvaluationAttempt} className="mt-2 flex gap-3">
+                    <input type="hidden" name="attemptId" value={attempt.id} />
+                    <input type="hidden" name="childId" value={child.id} />
+                    <button
+                      type="submit"
+                      name="isCorrect"
+                      value="true"
+                      className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700"
+                    >
+                      Correct
+                    </button>
+                    <button
+                      type="submit"
+                      name="isCorrect"
+                      value="false"
+                      className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
+                    >
+                      Incorrect
+                    </button>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {teacherSubmissions.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">Exercices de profs</h2>
+          <div className="flex flex-col gap-2">
+            {teacherSubmissions.map((submission) => (
+              <div key={submission.id} className="rounded-lg border p-3 text-sm">
+                <div className="font-medium">{submission.teacherExercise.title}</div>
+                <div className="text-gray-500">
+                  {submission.teacherExercise.teacher.name} ·{" "}
+                  {submission.status === "GRADED"
+                    ? submission.isCorrect
+                      ? "✅ Correct"
+                      : "❌ À revoir"
+                    : "En attente de correction"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Link
         href={`/dashboard/${child.id}/integrity`}

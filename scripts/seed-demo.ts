@@ -121,10 +121,10 @@ async function main() {
   }
 
   const childSpecs = [
-    { name: "Lina", birthYear: new Date().getFullYear() - 8 },
-    { name: "Yanis", birthYear: new Date().getFullYear() - 10 },
-    { name: "Jérémie", birthYear: new Date().getFullYear() - 9 },
-    { name: "Nathan", birthYear: new Date().getFullYear() - 11 },
+    { name: "Lina", birthYear: new Date().getFullYear() - 8, gradeLevel: "CE2" },
+    { name: "Yanis", birthYear: new Date().getFullYear() - 10, gradeLevel: "CM2" },
+    { name: "Jérémie", birthYear: new Date().getFullYear() - 9, gradeLevel: "CM1" },
+    { name: "Nathan", birthYear: new Date().getFullYear() - 11, gradeLevel: "6e" },
   ];
 
   for (const spec of childSpecs) {
@@ -135,7 +135,13 @@ async function main() {
     }
     const pin = generatePin();
     await prisma.child.create({
-      data: { parentId: parent.id, name: spec.name, birthYear: spec.birthYear, pinHash: await hashSecret(pin) },
+      data: {
+        parentId: parent.id,
+        name: spec.name,
+        birthYear: spec.birthYear,
+        gradeLevel: spec.gradeLevel,
+        pinHash: await hashSecret(pin),
+      },
     });
     console.log(`Enfant   : ${spec.name} — PIN ${pin} (via la sélection de profil du compte parent ci-dessus)`);
   }

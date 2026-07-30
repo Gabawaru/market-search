@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { createChildProfile } from "@/lib/actions/auth";
+import { GRADE_LEVELS } from "@/lib/validation/schemas";
 
 export default async function NewChildPage({
   searchParams,
@@ -41,6 +42,16 @@ export default async function NewChildPage({
             max={new Date().getFullYear()}
             className="rounded-md border px-3 py-2"
           />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Classe
+          <select name="gradeLevel" required className="rounded-md border px-3 py-2">
+            {GRADE_LEVELS.map((grade) => (
+              <option key={grade} value={grade}>
+                {grade}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Code PIN (4 à 6 chiffres)

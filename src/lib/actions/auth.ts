@@ -407,17 +407,18 @@ export async function createChildProfile(formData: FormData) {
   const parsed = childCreateSchema.safeParse({
     name: formData.get("name"),
     birthYear: formData.get("birthYear"),
+    gradeLevel: formData.get("gradeLevel"),
     pin: formData.get("pin"),
   });
   if (!parsed.success) {
     redirect(`/dashboard/children/new?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
   }
 
-  const { name, birthYear, pin } = parsed.data;
+  const { name, birthYear, gradeLevel, pin } = parsed.data;
   const pinHash = await hashSecret(pin);
 
   await prisma.child.create({
-    data: { parentId: session.user.id, name, birthYear, pinHash },
+    data: { parentId: session.user.id, name, birthYear, gradeLevel, pinHash },
   });
 
   redirect("/dashboard");

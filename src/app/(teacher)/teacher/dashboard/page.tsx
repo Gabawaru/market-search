@@ -32,6 +32,12 @@ export default async function TeacherDashboardPage() {
         Mes disponibilités
       </Link>
       <Link
+        href="/teacher/dashboard/exercises"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Mes exercices
+      </Link>
+      <Link
         href="/teacher/change-password"
         className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
       >

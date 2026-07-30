@@ -50,4 +50,26 @@ describe("pickDailyRecommendation", () => {
     ]);
     expect(result?.skillId).toBe("in-progress");
   });
+
+  it("uses gradeMatch only as a tiebreaker when mastery scores are exactly equal", () => {
+    const result = pickDailyRecommendation([
+      candidate({ skillId: "no-match", order: 1, masteryScore: 0.5, attemptsCount: 8 }),
+      candidate({ skillId: "match", order: 2, masteryScore: 0.5, attemptsCount: 8, gradeMatch: true }),
+    ]);
+    expect(result?.skillId).toBe("match");
+  });
+
+  it("ignores gradeMatch when mastery scores differ (primary signal always wins)", () => {
+    const result = pickDailyRecommendation([
+      candidate({ skillId: "higher-mastery", order: 1, masteryScore: 0.8, attemptsCount: 12 }),
+      candidate({
+        skillId: "grade-match-but-lower-mastery",
+        order: 2,
+        masteryScore: 0.3,
+        attemptsCount: 5,
+        gradeMatch: true,
+      }),
+    ]);
+    expect(result?.skillId).toBe("higher-mastery");
+  });
 });

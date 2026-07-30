@@ -73,6 +73,12 @@ export default async function ChildHomePage() {
         Mes points et récompenses
       </Link>
       <Link
+        href="/app/teacher-exercises"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Exercices de mes profs
+      </Link>
+      <Link
         href="/app/messages"
         className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
       >
