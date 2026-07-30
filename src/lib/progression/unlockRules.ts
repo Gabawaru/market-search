@@ -40,6 +40,18 @@ export function isReadyForEvaluation(
   return attemptsCount >= level.minExerciseCount && masteryScore >= level.unlockThreshold;
 }
 
+/** Signale qu'un enfant pratique beaucoup une compétence sans progresser — au-delà du double du
+ * nombre d'exercices normalement nécessaire pour être prêt, sans avoir atteint le seuil. Sert à
+ * suggérer un accompagnement par un vrai prof plutôt que de laisser l'enfant s'entraîner dans le
+ * vide indéfiniment (voir src/app/(parent)/dashboard/[childId]/page.tsx). */
+export function isStrugglingWithSkill(
+  masteryScore: number,
+  attemptsCount: number,
+  level: Pick<Level, "unlockThreshold" | "minExerciseCount">,
+): boolean {
+  return attemptsCount >= level.minExerciseCount * 2 && masteryScore < level.unlockThreshold;
+}
+
 /** Recalcule l'éligibilité côté serveur pour une compétence donnée — ne jamais faire
  * confiance à un enfant qui déclencherait un démarrage d'évaluation directement via l'API. */
 export async function checkEvaluationEligibility(childId: string, skillId: string) {

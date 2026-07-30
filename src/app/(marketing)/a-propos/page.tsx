@@ -61,6 +61,27 @@ export default function AboutPage() {
         </li>
       </ul>
 
+      <h2 className="text-xl font-semibold">Pas que de l&apos;IA</h2>
+      <p className="text-gray-700">
+        L&apos;entraînement quotidien s&apos;appuie sur des exercices générés automatiquement, pour
+        une pratique illimitée et gratuite. Mais dès qu&apos;un enfant a besoin d&apos;autre chose,
+        il y a toujours un vrai humain derrière :
+      </p>
+      <ul className="list-disc space-y-2 pl-5 text-gray-700">
+        <li>
+          Des <strong>exercices écrits par de vrais profs</strong>, jamais notés automatiquement —
+          chaque réponse est corrigée à la main, avec un retour personnalisé.
+        </li>
+        <li>
+          Une <strong>assistance IA</strong> pour proposer chaque jour un exercice adapté au niveau
+          de l&apos;enfant — un point de départ, pas un jugement final.
+        </li>
+        <li>
+          Et si un enfant reste bloqué malgré tout, la possibilité d&apos;engager un{" "}
+          <strong>vrai prof particulier</strong> pour un accompagnement dédié.
+        </li>
+      </ul>
+
       <p className="text-sm text-gray-400">
         Une question, une remarque ? Utilisez la boîte à suggestions depuis l&apos;espace parent ou
         enfant.
