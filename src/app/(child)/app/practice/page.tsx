@@ -23,6 +23,10 @@ export default async function PracticeHomePage() {
         ← Retour
       </Link>
       <h1 className="text-2xl font-bold">Choisis une compétence</h1>
+      <p className="text-sm text-gray-500">
+        Ces exercices sont générés automatiquement, à l&apos;infini : entraîne-toi autant que tu
+        veux, ça ne s&apos;arrête jamais.
+      </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {skills.map((skill) => {

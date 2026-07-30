@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getChildSession } from "@/lib/auth/childSession";
 import { prisma } from "@/lib/db/prisma";
 import { checkTeacherExerciseAccess } from "@/lib/progression/teacherExercises";
+import { ContentOriginBadge } from "@/components/ContentOriginBadge";
 
 export default async function TeacherExercisesListPage({
   searchParams,
@@ -52,8 +53,13 @@ export default async function TeacherExercisesListPage({
                 <Link href={`/app/teacher-exercises/${exercise.id}`} className="block">
                   <div className="font-medium">{exercise.title}</div>
                   <div className="text-sm text-gray-500">
-                    {exercise.level.skill.name} — {exercise.level.name} · {exercise.teacher.name}
+                    {exercise.level.skill.name} — {exercise.level.name}
                   </div>
+                  <ContentOriginBadge
+                    origin="teacher"
+                    authorName={exercise.teacher.name}
+                    className="mt-2"
+                  />
                 </Link>
               ) : (
                 <div>

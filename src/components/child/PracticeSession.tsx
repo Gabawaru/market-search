@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { pickCorrectMessage, pickIncorrectMessage } from "@/lib/progression/feedbackMessages";
 import { requestHelpFromParent } from "@/lib/actions/help";
+import { ContentOriginBadge } from "@/components/ContentOriginBadge";
 
 interface ExercisePayload {
   instanceId: string;
@@ -186,7 +187,10 @@ export function PracticeSession({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="text-xs uppercase text-gray-400">{exercise.levelName}</div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs uppercase text-gray-400">{exercise.levelName}</span>
+        <ContentOriginBadge origin="generated" />
+      </div>
       <div className="rounded-lg border p-6 text-center text-3xl font-semibold">
         {exercise.promptText}
       </div>
