@@ -14,6 +14,7 @@ import {
   teacherApplicationSchema,
   childCreateSchema,
   childLoginSchema,
+  childDirectLoginSchema,
   passwordSchema,
   emailSchema,
 } from "@/lib/validation/schemas";
@@ -451,6 +452,40 @@ export async function loginChild(formData: FormData) {
 
   await setChildSessionCookie({ childId: child.id, parentId: child.parentId, name: child.name });
   redirect("/app");
+}
+
+// Connexion directe par prénom + code PIN, sans qu'un parent soit déjà connecté sur l'appareil
+// (contrairement à loginChild ci-dessus, qui exige une session PARENT active). Le prénom n'est
+// pas unique à l'échelle du site (seulement au sein d'un même parent) : on recherche parmi tous
+// les enfants portant ce prénom et on vérifie le PIN de chacun jusqu'à trouver une correspondance.
+export async function loginChildByNamePin(formData: FormData) {
+  const parsed = childDirectLoginSchema.safeParse({
+    name: formData.get("name"),
+    pin: formData.get("pin"),
+  });
+  if (!parsed.success) {
+    redirect(`/child/login?error=${encodeURIComponent("Prénom ou code PIN incorrect")}`);
+  }
+
+  const { name, pin } = parsed.data;
+  const candidates = await prisma.child.findMany({
+    where: { name: { equals: name, mode: "insensitive" } },
+  });
+
+  for (const candidate of candidates) {
+    if (await verifySecret(pin, candidate.pinHash)) {
+      await setChildSessionCookie({
+        childId: candidate.id,
+        parentId: candidate.parentId,
+        name: candidate.name,
+      });
+      redirect("/app");
+    }
+  }
+
+  // Message générique (ne précise pas si le prénom existe) pour ne pas faciliter une attaque
+  // par force brute sur le code PIN d'un prénom connu.
+  redirect(`/child/login?error=${encodeURIComponent("Prénom ou code PIN incorrect")}`);
 }
 
 export async function logoutChild() {

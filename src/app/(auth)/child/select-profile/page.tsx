@@ -57,6 +57,10 @@ export default async function SelectChildProfilePage({
       <Link href="/dashboard/children/new" className="text-sm text-indigo-600 underline">
         + Ajouter un enfant
       </Link>
+
+      <Link href="/child/login" className="text-sm text-indigo-600 underline">
+        Se connecter directement avec prénom + code secret
+      </Link>
     </main>
   );
 }

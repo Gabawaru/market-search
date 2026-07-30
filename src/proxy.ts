@@ -39,7 +39,7 @@ export async function proxy(req: NextRequest) {
     const token = req.cookies.get(CHILD_SESSION_COOKIE)?.value;
     const childSession = token ? await verifyChildSessionToken(token) : null;
     if (!childSession) {
-      return NextResponse.redirect(new URL("/child/select-profile", nextUrl));
+      return NextResponse.redirect(new URL("/child/login", nextUrl));
     }
   }
 

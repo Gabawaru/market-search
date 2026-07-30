@@ -57,3 +57,10 @@ export const childLoginSchema = z.object({
   childId: z.string().min(1),
   pin: z.string().min(1),
 });
+
+// Connexion directe (sans qu'un parent soit déjà connecté sur l'appareil) — voir
+// loginChildByNamePin dans lib/actions/auth.ts.
+export const childDirectLoginSchema = z.object({
+  name: z.string().trim().min(1, "Le prénom est requis"),
+  pin: z.string().min(1, "Le code PIN est requis"),
+});

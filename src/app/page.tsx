@@ -43,7 +43,7 @@ export default function Home() {
           Espace parent
         </Link>
         <Link
-          href="/child/select-profile"
+          href="/child/login"
           className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
         >
           Espace enfant
