@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { gradeEvaluationAttempt } from "@/lib/actions/assessment";
+import { isStrugglingWithSkill } from "@/lib/progression/unlockRules";
 
 export default async function ChildDetailPage({
   params,
@@ -58,6 +59,21 @@ export default async function ChildDetailPage({
     include: { exerciseInstance: true },
     orderBy: { presentedAt: "desc" },
   });
+
+  // Compétences où l'enfant pratique beaucoup sans progresser — suggère un accompagnement par
+  // un vrai prof plutôt que de le laisser s'entraîner dans le vide indéfiniment.
+  const strugglingSkills: { skillId: string; skillName: string }[] = [];
+  for (const progress of skillProgress) {
+    if (!progress.currentLevelId) continue;
+    const level = await prisma.level.findUnique({ where: { id: progress.currentLevelId } });
+    if (!level) continue;
+    const attemptsCount = await prisma.exerciseAttempt.count({
+      where: { childId, exerciseInstance: { exercise: { levelId: level.id } } },
+    });
+    if (isStrugglingWithSkill(progress.masteryScore, attemptsCount, level)) {
+      strugglingSkills.push({ skillId: progress.skillId, skillName: progress.skill.name });
+    }
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-12">
@@ -128,6 +144,24 @@ export default async function ChildDetailPage({
           </div>
         )}
       </section>
+
+      {strugglingSkills.length > 0 && (
+        <section className="flex flex-col gap-3 rounded-lg border border-indigo-300 bg-indigo-50 p-4">
+          <h2 className="text-lg font-semibold text-indigo-900">Besoin d&apos;un coup de main ?</h2>
+          <p className="text-sm text-indigo-700">
+            {child.name} s&apos;entraîne beaucoup en{" "}
+            {strugglingSkills.map((s) => s.skillName).join(", ")} sans encore progresser. C&apos;est
+            peut-être le moment de faire appel à un vrai prof particulier pour un accompagnement
+            dédié.
+          </p>
+          <Link
+            href={`/dashboard/${child.id}/tutoring`}
+            className="self-start rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700"
+          >
+            Voir les profs disponibles
+          </Link>
+        </section>
+      )}
 
       {pendingFreeTextAttempts.length > 0 && (
         <section className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4">
