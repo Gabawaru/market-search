@@ -12,12 +12,43 @@ function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
+// Correspondance approximative classe → ordre de compétence attendu (le programme actuel n'a
+// que 6 compétences communes à tout le monde, sans distinction par classe — voir Child.gradeLevel
+// dans prisma/schema.prisma). Sert uniquement de signal d'appoint pour départager une égalité,
+// jamais un filtre strict.
+const GRADE_LEVEL_ORDER_HINT: Record<string, number> = {
+  CP: 1,
+  CE1: 2,
+  CE2: 3,
+  CM1: 4,
+  CM2: 5,
+  "6e": 6,
+  "5e": 6,
+  "4e": 6,
+  "3e": 6,
+};
+
+function matchesGradeLevel(skillOrder: number, gradeLevel: string | null): boolean | undefined {
+  if (!gradeLevel) return undefined;
+  const expectedOrder = GRADE_LEVEL_ORDER_HINT[gradeLevel];
+  if (expectedOrder === undefined) return undefined;
+  return Math.abs(skillOrder - expectedOrder) <= 1;
+}
+
 export interface SkillCandidate {
   skillId: string;
   order: number;
   masteryScore: number;
   attemptsCount: number;
   readyForEvaluation: boolean;
+  // Signal d'appoint optionnel (classe déclarée de l'enfant, voir GRADE_LEVEL_ORDER_HINT) —
+  // ne départage qu'en cas d'égalité stricte sur le critère principal de chaque priorité
+  // ci-dessous, ne change jamais l'ordre entre "en cours" / "prêt" / "nouveau".
+  gradeMatch?: boolean;
+}
+
+function preferByGradeOnTie<T extends SkillCandidate>(a: T, b: T): T {
+  return Boolean(b.gradeMatch) && !a.gradeMatch ? b : a;
 }
 
 export interface PickedRecommendation {
@@ -37,13 +68,17 @@ export function pickDailyRecommendation(candidates: SkillCandidate[]): PickedRec
 
   const inProgress = candidates.filter((c) => c.attemptsCount > 0 && !c.readyForEvaluation);
   if (inProgress.length > 0) {
-    const best = inProgress.reduce((a, b) => (b.masteryScore > a.masteryScore ? b : a));
+    const best = inProgress.reduce((a, b) =>
+      b.masteryScore !== a.masteryScore ? (b.masteryScore > a.masteryScore ? b : a) : preferByGradeOnTie(a, b),
+    );
     return { skillId: best.skillId, reason: "Continue cette compétence, tu es sur le point de progresser." };
   }
 
   const readyOnes = candidates.filter((c) => c.readyForEvaluation);
   if (readyOnes.length > 0) {
-    const best = readyOnes.reduce((a, b) => (b.order < a.order ? b : a));
+    const best = readyOnes.reduce((a, b) =>
+      b.order !== a.order ? (b.order < a.order ? b : a) : preferByGradeOnTie(a, b),
+    );
     return { skillId: best.skillId, reason: "Tu es prêt·e pour l'évaluation de cette compétence !" };
   }
 
@@ -76,6 +111,7 @@ export async function getOrCreateDailyRecommendation(childId: string, now = new 
 
   const candidates: SkillCandidate[] = [];
   for (const skill of skills) {
+    const gradeMatch = matchesGradeLevel(skill.order, child.gradeLevel);
     const skillProgress = progress.find((p) => p.skillId === skill.id);
     if (!skillProgress || !skillProgress.currentLevelId) {
       candidates.push({
@@ -84,6 +120,7 @@ export async function getOrCreateDailyRecommendation(childId: string, now = new 
         masteryScore: 0,
         attemptsCount: 0,
         readyForEvaluation: false,
+        gradeMatch,
       });
       continue;
     }
@@ -98,6 +135,7 @@ export async function getOrCreateDailyRecommendation(childId: string, now = new 
       masteryScore: skillProgress.masteryScore,
       attemptsCount,
       readyForEvaluation: isReadyForEvaluation(skillProgress.masteryScore, attemptsCount, level),
+      gradeMatch,
     });
   }
 

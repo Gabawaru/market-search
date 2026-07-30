@@ -21,7 +21,7 @@ export default async function ChildDetailPage({
     redirect("/dashboard");
   }
 
-  const [skillProgress, streak, badges, wallet, recentStories, unreadIntegrityCount] =
+  const [skillProgress, streak, badges, wallet, recentStories, unreadIntegrityCount, teacherSubmissions] =
     await Promise.all([
       prisma.childSkillProgress.findMany({
         where: { childId },
@@ -37,6 +37,12 @@ export default async function ChildDetailPage({
         take: 5,
       }),
       prisma.integrityEvent.count({ where: { childId, viewedByParentAt: null } }),
+      prisma.teacherExerciseSubmission.findMany({
+        where: { childId },
+        include: { teacherExercise: { include: { teacher: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
     ]);
 
   return (
@@ -44,7 +50,10 @@ export default async function ChildDetailPage({
       <Link href="/dashboard" className="text-sm text-indigo-600 underline">
         ← Retour
       </Link>
-      <h1 className="text-2xl font-bold">{child.name}</h1>
+      <h1 className="text-2xl font-bold">
+        {child.name}
+        {child.gradeLevel && <span className="ml-2 text-base font-normal text-gray-500">({child.gradeLevel})</span>}
+      </h1>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border p-3 text-center">
@@ -105,6 +114,27 @@ export default async function ChildDetailPage({
           </div>
         )}
       </section>
+
+      {teacherSubmissions.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">Exercices de profs</h2>
+          <div className="flex flex-col gap-2">
+            {teacherSubmissions.map((submission) => (
+              <div key={submission.id} className="rounded-lg border p-3 text-sm">
+                <div className="font-medium">{submission.teacherExercise.title}</div>
+                <div className="text-gray-500">
+                  {submission.teacherExercise.teacher.name} ·{" "}
+                  {submission.status === "GRADED"
+                    ? submission.isCorrect
+                      ? "✅ Correct"
+                      : "❌ À revoir"
+                    : "En attente de correction"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Link
         href={`/dashboard/${child.id}/integrity`}
