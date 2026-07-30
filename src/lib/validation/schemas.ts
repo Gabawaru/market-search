@@ -43,6 +43,11 @@ export const teacherApplicationSchema = z.object({
   message: z.string().trim().max(2000).optional(),
 });
 
+// Limité au primaire/début de collège, cohérent avec le programme actuel (numération, opérations,
+// fractions) — pas de contenu distinct par classe pour l'instant, voir Child.gradeLevel.
+export const GRADE_LEVELS = ["CP", "CE1", "CE2", "CM1", "CM2", "6e", "5e", "4e", "3e"] as const;
+export const gradeLevelSchema = z.enum(GRADE_LEVELS, "Classe invalide");
+
 export const childCreateSchema = z.object({
   name: z.string().trim().min(1, "Le prénom est requis"),
   birthYear: z.coerce
@@ -50,6 +55,7 @@ export const childCreateSchema = z.object({
     .int()
     .min(new Date().getFullYear() - 18)
     .max(new Date().getFullYear() - 3, "L'enfant doit avoir au moins 3 ans"),
+  gradeLevel: gradeLevelSchema,
   pin: pinSchema,
 });
 

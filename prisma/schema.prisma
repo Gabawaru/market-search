@@ -35,32 +35,37 @@ model Parent {
 }
 
 model Child {
-  id        String   @id @default(cuid())
-  parentId  String
-  parent    Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
-  name      String
-  pinHash   String
-  avatarKey String?
-  birthYear Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  parentId   String
+  parent     Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  name       String
+  pinHash    String
+  avatarKey  String?
+  birthYear  Int
+  // Classe scolaire déclarée par le parent (ex. "CP", "6e") — nullable pour les comptes créés
+  // avant l'ajout de ce champ. Signal d'appoint pour les recommandations (voir
+  // src/lib/progression/recommendation.ts), pas un programme d'exercices séparé par classe.
+  gradeLevel String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  skillProgress        ChildSkillProgress[]
-  exerciseAttempts     ExerciseAttempt[]
-  evaluations          Evaluation[]
-  integrityEvents      IntegrityEvent[]
-  badges               ChildBadge[]
-  streak               Streak?
-  writingProfile       ChildWritingProfile?
-  pointsWallet         PointsWallet?
-  rewardRedemptions    RewardRedemption[]
-  assessments          ChildAssessment[]
-  progressReports      ProgressReport[]
-  lessonStoryEntries   LessonStoryEntry[]
-  tutoringRequests     TutoringRequest[]
-  suggestionThreads    SuggestionThread[]
-  chatThreads          ChatThreadParticipant[]
-  dailyRecommendations DailyRecommendation[]
+  skillProgress              ChildSkillProgress[]
+  exerciseAttempts           ExerciseAttempt[]
+  evaluations                Evaluation[]
+  integrityEvents            IntegrityEvent[]
+  badges                     ChildBadge[]
+  streak                     Streak?
+  writingProfile             ChildWritingProfile?
+  pointsWallet               PointsWallet?
+  rewardRedemptions          RewardRedemption[]
+  assessments                ChildAssessment[]
+  progressReports            ProgressReport[]
+  lessonStoryEntries         LessonStoryEntry[]
+  tutoringRequests           TutoringRequest[]
+  suggestionThreads          SuggestionThread[]
+  chatThreads                ChatThreadParticipant[]
+  dailyRecommendations       DailyRecommendation[]
+  teacherExerciseSubmissions TeacherExerciseSubmission[]
 
   @@index([parentId])
 }
@@ -87,6 +92,7 @@ model Teacher {
   chatThreads         ChatThreadParticipant[]
   notifications       Notification[]
   passwordResetTokens PasswordResetToken[]
+  teacherExercises    TeacherExercise[]
 }
 
 enum TeacherApplicationStatus {
@@ -187,6 +193,7 @@ model Level {
   exercises        Exercise[]
   evaluations      Evaluation[]
   tutoringRequests TutoringRequest[]
+  teacherExercises TeacherExercise[]
 
   @@unique([skillId, order])
 }
@@ -256,6 +263,59 @@ model ExerciseAttempt {
 
   @@index([childId])
   @@index([exerciseInstanceId])
+}
+
+// Exercice écrit par un vrai prof (par opposition aux Exercise générés proceduralement
+// ci-dessus) — jamais noté automatiquement, toujours corrigé à la main par le prof qui l'a
+// déposé (voir TeacherExerciseSubmission). Réservé aux enfants ayant assez de points ET ayant
+// déjà atteint le niveau ciblé (voir src/lib/progression/teacherExercises.ts).
+enum TeacherExerciseStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model TeacherExercise {
+  id              String                @id @default(cuid())
+  teacherId       String
+  teacher         Teacher               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  levelId         String
+  level           Level                 @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  title           String
+  promptText      String
+  // Corrigé de référence à l'usage du prof seul (aide à la correction) — jamais utilisé pour
+  // une comparaison automatique, contrairement à ExerciseInstance.correctAnswer.
+  referenceAnswer String?
+  pointsRequired  Int                   @default(0)
+  status          TeacherExerciseStatus @default(DRAFT)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  submissions TeacherExerciseSubmission[]
+
+  @@index([teacherId])
+  @@index([levelId])
+}
+
+enum TeacherExerciseSubmissionStatus {
+  PENDING
+  GRADED
+}
+
+model TeacherExerciseSubmission {
+  id                String                          @id @default(cuid())
+  teacherExerciseId String
+  teacherExercise   TeacherExercise                 @relation(fields: [teacherExerciseId], references: [id], onDelete: Cascade)
+  childId           String
+  child             Child                           @relation(fields: [childId], references: [id], onDelete: Cascade)
+  answerText        String
+  status            TeacherExerciseSubmissionStatus @default(PENDING)
+  isCorrect         Boolean?
+  feedback          String?
+  gradedAt          DateTime?
+  createdAt         DateTime                        @default(now())
+
+  @@index([teacherExerciseId])
+  @@index([childId])
 }
 
 // ---------------------------------------------------------------------------
