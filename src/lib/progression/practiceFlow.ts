@@ -9,6 +9,11 @@ import {
 import { awardPoints } from "@/lib/progression/points";
 import { recordDailyActivity } from "@/lib/progression/streaks";
 import { checkExerciseCountBadges } from "@/lib/progression/badges";
+import {
+  HELP_OFFER_CONSECUTIVE_INCORRECT,
+  countTrailingIncorrect,
+  shouldOfferHelp,
+} from "@/lib/progression/helpRequests";
 
 export async function getNextPracticeExercise(childId: string, skillId: string) {
   const progress = await getOrCreateSkillProgress(childId, skillId);
@@ -77,11 +82,19 @@ export async function recordPracticeAttempt(params: RecordPracticeAttemptParams)
   const { currentStreak } = await recordDailyActivity(params.childId);
   await checkExerciseCountBadges(params.childId);
 
+  const recentAttempts = await prisma.exerciseAttempt.findMany({
+    where: { childId: params.childId, exerciseInstance: { exercise: { levelId: level.id } } },
+    orderBy: { createdAt: "desc" },
+    take: HELP_OFFER_CONSECUTIVE_INCORRECT,
+    select: { isCorrect: true },
+  });
+
   return {
     isCorrect,
     correctAnswer: correctAnswer.value,
     masteryScore,
     readyForEvaluation: isReadyForEvaluation(masteryScore, attemptsCount, level),
     currentStreak,
+    offerHelp: shouldOfferHelp(countTrailingIncorrect(recentAttempts)),
   };
 }

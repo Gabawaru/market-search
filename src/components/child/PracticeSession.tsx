@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { pickCorrectMessage, pickIncorrectMessage } from "@/lib/progression/feedbackMessages";
+import { requestHelpFromParent } from "@/lib/actions/help";
 
 interface ExercisePayload {
   instanceId: string;
@@ -15,6 +17,13 @@ interface AttemptResult {
   masteryScore: number;
   readyForEvaluation: boolean;
   currentStreak: number;
+  offerHelp: boolean;
+}
+
+interface HelpOptions {
+  threadId: string | null;
+  teacherName: string | null;
+  requestPending: boolean;
 }
 
 interface PersistedState {
@@ -84,7 +93,15 @@ function setPersisted(key: string, state: PersistedState) {
   storeListeners.get(key)?.forEach((cb) => cb());
 }
 
-export function PracticeSession({ skillId, childId }: { skillId: string; childId: string }) {
+export function PracticeSession({
+  skillId,
+  childId,
+  help,
+}: {
+  skillId: string;
+  childId: string;
+  help: HelpOptions;
+}) {
   const key = storageKey(childId, skillId);
   const persisted = useSyncExternalStore(
     (callback) => subscribe(key, callback),
@@ -183,6 +200,37 @@ export function PracticeSession({ skillId, childId }: { skillId: string; childId
             <p className="text-sm text-indigo-600">
               Tu maîtrises bien ce niveau, une évaluation sera bientôt possible !
             </p>
+          )}
+          {feedback.offerHelp && (
+            <div className="flex w-full flex-col gap-2 rounded-lg border border-sky-300 bg-sky-50 p-4 text-center">
+              <p className="font-medium text-sky-900">Tu veux un coup de main ?</p>
+              <p className="text-sm text-sky-800">
+                Cette série est costaude — ça arrive à tout le monde ! Une vraie personne peut
+                t&apos;expliquer autrement.
+              </p>
+              {help.threadId ? (
+                <Link
+                  href={`/app/messages/${help.threadId}`}
+                  className="self-center rounded-md bg-sky-600 px-3 py-2 text-sm text-white hover:bg-sky-700"
+                >
+                  Écrire à {help.teacherName ?? "mon prof"}
+                </Link>
+              ) : help.requestPending ? (
+                <p className="text-sm font-medium text-sky-900">
+                  C&apos;est noté ! Tes parents sont prévenus, vous regarderez ça ensemble.
+                </p>
+              ) : (
+                <form action={requestHelpFromParent} className="self-center">
+                  <input type="hidden" name="skillId" value={skillId} />
+                  <button
+                    type="submit"
+                    className="rounded-md bg-sky-600 px-3 py-2 text-sm text-white hover:bg-sky-700"
+                  >
+                    Prévenir mes parents
+                  </button>
+                </form>
+              )}
+            </div>
           )}
           <button
             onClick={handleNext}
