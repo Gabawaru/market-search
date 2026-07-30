@@ -31,5 +31,6 @@ export async function checkTeacherExerciseAccess(childId: string, teacherExercis
   return {
     eligible: isReadyForTeacherExercise(wallet.balance, childCurrentLevelOrder, exercise),
     exercise,
+    wallet,
   };
 }
