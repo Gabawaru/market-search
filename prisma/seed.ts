@@ -262,7 +262,10 @@ const REWARD_CATALOG: {
     code: "pause_day",
     label: "Jour de pause",
     description: "Un jour de pause qui ne casse pas ta série — utilisé automatiquement si tu manques un jour.",
-    cost: 100,
+    // Volontairement coûteux (5x le prix initial) : un jour de pause doit rester une vraie
+    // récompense pour un effort soutenu, pas un filet de sécurité bon marché qui permettrait
+    // d'accumuler des séries sans pratiquer réellement.
+    cost: 500,
     icon: "🌴",
     kind: "STREAK_FREEZE",
   },
