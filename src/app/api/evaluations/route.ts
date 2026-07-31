@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getChildSession } from "@/lib/auth/childSession";
-import { startEvaluation, EvaluationEligibilityError } from "@/lib/evaluation/flow";
+import { startEvaluation, startSkipEvaluation, EvaluationEligibilityError } from "@/lib/evaluation/flow";
 
-const bodySchema = z.object({ skillId: z.string().min(1) });
+const bodySchema = z.object({ skillId: z.string().min(1), mode: z.enum(["normal", "skip"]).optional() });
 
 export async function POST(request: Request) {
   const session = await getChildSession();
@@ -18,7 +18,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await startEvaluation(session.childId, parsed.data.skillId);
+    const result =
+      parsed.data.mode === "skip"
+        ? await startSkipEvaluation(session.childId, parsed.data.skillId)
+        : await startEvaluation(session.childId, parsed.data.skillId);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof EvaluationEligibilityError) {

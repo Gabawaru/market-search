@@ -40,6 +40,21 @@ export function isReadyForEvaluation(
   return attemptsCount >= level.minExerciseCount && masteryScore >= level.unlockThreshold;
 }
 
+/** "Test out" façon Duolingo : un enfant confiant peut tenter l'évaluation directement, sans
+ * avoir fait le nombre d'exercices habituellement requis — l'évaluation elle-même reste tout
+ * aussi exigeante (même unlockThreshold, mêmes garde-fous anti-triche), seul le pré-requis de
+ * pratique est sauté. Level.retryCooldownHours (jusque-là jamais utilisé nulle part dans le
+ * code) empêche de retenter un skip en boucle juste après un échec. */
+export function canAttemptSkipEvaluation(
+  lastEvaluationStartedAt: Date | null,
+  now: Date,
+  retryCooldownHours: number,
+): boolean {
+  if (!lastEvaluationStartedAt) return true;
+  const elapsedHours = (now.getTime() - lastEvaluationStartedAt.getTime()) / (1000 * 60 * 60);
+  return elapsedHours >= retryCooldownHours;
+}
+
 /** Signale qu'un enfant pratique beaucoup une compétence sans progresser — au-delà du double du
  * nombre d'exercices normalement nécessaire pour être prêt, sans avoir atteint le seuil. Sert à
  * suggérer un accompagnement par un vrai prof plutôt que de laisser l'enfant s'entraîner dans le

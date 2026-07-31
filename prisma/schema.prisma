@@ -36,8 +36,13 @@ model Parent {
 
 model Child {
   id         String   @id @default(cuid())
-  parentId   String
-  parent     Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  // Un enfant appartient à exactement un parent OU un prof (jamais les deux, jamais aucun) —
+  // contrainte applicative, pas de CHECK SQL simple avec deux colonnes nullable. Un prof peut
+  // créer un profil enfant de façon autonome (teacherId), sans passer par un parent.
+  parentId   String?
+  parent     Parent?  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  teacherId  String?
+  teacher    Teacher? @relation("TeacherStudents", fields: [teacherId], references: [id], onDelete: Cascade)
   name       String
   pinHash    String
   avatarKey  String?
@@ -66,8 +71,10 @@ model Child {
   chatThreads                ChatThreadParticipant[]
   dailyRecommendations       DailyRecommendation[]
   teacherExerciseSubmissions TeacherExerciseSubmission[]
+  curatedExerciseAttempts    CuratedExerciseAttempt[]
 
   @@index([parentId])
+  @@index([teacherId])
 }
 
 model Teacher {
@@ -93,6 +100,7 @@ model Teacher {
   notifications       Notification[]
   passwordResetTokens PasswordResetToken[]
   teacherExercises    TeacherExercise[]
+  students            Child[]                 @relation("TeacherStudents")
 }
 
 enum TeacherApplicationStatus {
@@ -194,6 +202,8 @@ model Level {
   evaluations      Evaluation[]
   tutoringRequests TutoringRequest[]
   teacherExercises TeacherExercise[]
+  curatedExercises CuratedExercise[]
+  lessons          Lesson[]
 
   @@unique([skillId, order])
 }
@@ -323,6 +333,92 @@ model TeacherExerciseSubmission {
 
   @@index([teacherExerciseId])
   @@index([childId])
+}
+
+// ---------------------------------------------------------------------------
+// Contenu collège/lycée sourcé (curation périodique + exercices inspirés)
+// ---------------------------------------------------------------------------
+
+enum CuratedExerciseSourceType {
+  // Reproduit fidèlement une ressource explicitement sous licence libre (jamais un contenu
+  // sous droits d'auteur reproduit tel quel).
+  OFFICIAL_OPEN_SOURCE
+  // Énoncé réécrit, inspiré d'une source réelle mais jamais copié verbatim — la source et sa
+  // licence sont documentées pour traçabilité.
+  INSPIRED_BY_SOURCE
+}
+
+enum CuratedExerciseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Exercice proposé périodiquement par une Routine Claude (voir src/lib/devscan/curatedExercises.ts
+// et /api/dev/curated-exercises) pour combler le programme collège/lycée, au-delà du primaire déjà
+// couvert par le moteur de générateurs procéduraux. Jamais publié automatiquement — passe par la
+// même validation humaine que DevSuggestion. La correction reste toujours déterministe
+// (correctAnswer vérifiable via answersMatch, jamais une IA qui "devine" si la réponse est juste).
+model CuratedExercise {
+  id              String                    @id @default(cuid())
+  levelId         String
+  level           Level                     @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  promptText      String
+  correctAnswer   String
+  sourceType      CuratedExerciseSourceType
+  sourceUrl       String
+  sourceLicense   String
+  status          CuratedExerciseStatus     @default(PENDING)
+  createdAt       DateTime                  @default(now())
+  reviewedAt      DateTime?
+
+  attempts CuratedExerciseAttempt[]
+
+  @@index([levelId])
+  @@index([status])
+}
+
+model CuratedExerciseAttempt {
+  id                String          @id @default(cuid())
+  curatedExerciseId String
+  curatedExercise   CuratedExercise @relation(fields: [curatedExerciseId], references: [id], onDelete: Cascade)
+  childId           String
+  child             Child           @relation(fields: [childId], references: [id], onDelete: Cascade)
+  answerGiven       String
+  isCorrect         Boolean
+  createdAt         DateTime        @default(now())
+
+  @@index([curatedExerciseId])
+  @@index([childId])
+}
+
+enum LessonType {
+  VIDEO
+  DOCUMENT
+  AI_PAGE
+}
+
+// Leçon façon CNED : explique un concept, distincte des exercices infinis générés — l'enfant peut
+// y revenir librement, sans gating par points (contrairement à TeacherExercise). Rattachée à un
+// Level, comme Exercise/Evaluation/TeacherExercise.
+model Lesson {
+  id               String     @id @default(cuid())
+  levelId          String
+  level            Level      @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  title            String
+  type             LessonType
+  // VIDEO : lien YouTube. DOCUMENT : fichier joint (mêmes champs que TeacherExercise.documentData).
+  // AI_PAGE : contenu rédigé au moment de l'ajout (jamais généré en direct par un appel IA payant),
+  // toujours basé sur l'une des deux autres sources (voir contentSourceUrl).
+  videoUrl         String?
+  documentData     Bytes?
+  documentMimeType String?
+  documentFileName String?
+  contentMarkdown  String?
+  contentSourceUrl String?
+  createdAt        DateTime   @default(now())
+
+  @@index([levelId])
 }
 
 // ---------------------------------------------------------------------------

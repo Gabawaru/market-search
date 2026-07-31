@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { pickCorrectMessage, pickIncorrectMessage } from "@/lib/progression/feedbackMessages";
 import { requestHelpFromParent } from "@/lib/actions/help";
 import { ContentOriginBadge } from "@/components/ContentOriginBadge";
+import { playSound } from "@/lib/sound/playSound";
 
 interface ExercisePayload {
   instanceId: string;
@@ -33,6 +34,7 @@ interface PersistedState {
   exercise: ExercisePayload | null;
   feedback: AttemptResult | null;
   feedbackMessage: string;
+  streakJustIncreased: boolean;
 }
 
 const DEFAULT_STATE: PersistedState = {
@@ -41,6 +43,7 @@ const DEFAULT_STATE: PersistedState = {
   exercise: null,
   feedback: null,
   feedbackMessage: "",
+  streakJustIncreased: false,
 };
 
 // Session de practice persistée via localStorage (clé par enfant + compétence), pour ne rien
@@ -112,6 +115,7 @@ export function PracticeSession({
   const [error, setError] = useState<string | null>(null);
   const startedAtRef = useRef(0);
   const initialFetchDone = useRef(false);
+  const lastKnownStreakRef = useRef<number | null>(null);
 
   async function loadExercise(currentRound: number, base: PersistedState) {
     setError(null);
@@ -150,7 +154,14 @@ export function PracticeSession({
   }
 
   function handleNext() {
-    const cleared = { ...persisted, feedback: null, feedbackMessage: "", answer: "", exercise: null };
+    const cleared = {
+      ...persisted,
+      feedback: null,
+      feedbackMessage: "",
+      answer: "",
+      exercise: null,
+      streakJustIncreased: false,
+    };
     setPersisted(key, cleared);
     void loadExercise(persisted.round + 1, cleared);
   }
@@ -171,16 +182,21 @@ export function PracticeSession({
     });
     if (!res.ok) return;
     const result: AttemptResult = await res.json();
+    const streakJustIncreased =
+      lastKnownStreakRef.current !== null && result.currentStreak > lastKnownStreakRef.current;
+    lastKnownStreakRef.current = result.currentStreak;
+    playSound(streakJustIncreased ? "streak" : result.isCorrect ? "correct" : "incorrect");
     setPersisted(key, {
       ...persisted,
       feedback: result,
       feedbackMessage: result.isCorrect
         ? pickCorrectMessage()
         : pickIncorrectMessage(result.correctAnswer),
+      streakJustIncreased,
     });
   }
 
-  const { exercise, answer, feedback, feedbackMessage } = persisted;
+  const { exercise, answer, feedback, feedbackMessage, streakJustIncreased } = persisted;
 
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (!exercise) return <p className="text-sm text-gray-500">Chargement...</p>;
@@ -196,13 +212,18 @@ export function PracticeSession({
       </div>
 
       {feedback ? (
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-3 animate-[feedback-in_0.3s_ease-out]">
           <p className={feedback.isCorrect ? "text-lg font-medium text-emerald-600" : "text-lg font-medium text-red-600"}>
             {feedbackMessage}
           </p>
           {feedback.readyForEvaluation && (
             <p className="text-sm text-indigo-600">
               Tu maîtrises bien ce niveau, une évaluation sera bientôt possible !
+            </p>
+          )}
+          {streakJustIncreased && (
+            <p className="animate-[streak-pop_0.4s_ease-out] text-sm font-medium text-orange-500">
+              {feedback.currentStreak}🔥 jours de suite !
             </p>
           )}
           {feedback.offerHelp && (

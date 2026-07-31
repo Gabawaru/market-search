@@ -43,7 +43,9 @@ export default async function ChildHomePage() {
           <div className="text-xs text-gray-500">points</div>
         </div>
         <div className="flex-1 rounded-lg border p-3 text-center">
-          <div className="text-xl font-bold text-orange-500">{streak?.currentStreak ?? 0}🔥</div>
+          <div className="animate-[streak-pop_0.5s_ease-out] text-xl font-bold text-orange-500">
+            {streak?.currentStreak ?? 0}🔥
+          </div>
           <div className="text-xs text-gray-500">jours de suite</div>
         </div>
       </div>
@@ -80,6 +82,19 @@ export default async function ChildHomePage() {
       >
         Exercices de mes profs
         <ContentOriginBadge origin="teacher" />
+      </Link>
+      <Link
+        href="/app/curated-exercises"
+        className="flex flex-col items-center gap-2 rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Exercices collège/lycée
+        <ContentOriginBadge origin="curated" />
+      </Link>
+      <Link
+        href="/app/lessons"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Mes leçons
       </Link>
       <Link
         href="/app/messages"

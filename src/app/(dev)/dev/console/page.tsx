@@ -6,6 +6,8 @@ import {
   rejectDevSuggestion,
   approveTeacherApplication,
   rejectTeacherApplication,
+  approveCuratedExercise,
+  rejectCuratedExercise,
 } from "@/lib/actions/devConsole";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -13,6 +15,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   DIFFICULTY: "Difficulté",
   FEATURE: "Fonctionnalité",
   CODE: "Code",
+};
+
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  OFFICIAL_OPEN_SOURCE: "Source ouverte officielle",
+  INSPIRED_BY_SOURCE: "Inspiré d'une source réelle",
 };
 
 export default async function DevConsolePage({
@@ -26,7 +33,7 @@ export default async function DevConsolePage({
     redirect("/dev/login");
   }
 
-  const [pendingSuggestions, reviewedSuggestions, scanRuns, pendingApplications] =
+  const [pendingSuggestions, reviewedSuggestions, scanRuns, pendingApplications, pendingCuratedExercises] =
     await Promise.all([
       prisma.devSuggestion.findMany({ where: { status: "PENDING" }, orderBy: { createdAt: "desc" } }),
       prisma.devSuggestion.findMany({
@@ -37,6 +44,11 @@ export default async function DevConsolePage({
       prisma.aiScanRun.findMany({ orderBy: { runAt: "desc" }, take: 10 }),
       prisma.teacherApplication.findMany({
         where: { status: "PENDING" },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.curatedExercise.findMany({
+        where: { status: "PENDING" },
+        include: { level: { include: { skill: true } } },
         orderBy: { createdAt: "desc" },
       }),
     ]);
@@ -126,6 +138,55 @@ export default async function DevConsolePage({
                   </form>
                   <form action={rejectDevSuggestion}>
                     <input type="hidden" name="id" value={s.id} />
+                    <button
+                      type="submit"
+                      className="rounded-md border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Rejeter
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Exercices collège/lycée en attente de validation</h2>
+        <p className="text-sm text-gray-500">
+          Proposés par la Routine de curation périodique — jamais publiés sans validation ici.
+        </p>
+        {pendingCuratedExercises.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucun exercice en attente pour l&apos;instant.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {pendingCuratedExercises.map((e) => (
+              <li key={e.id} className="rounded-lg border p-3">
+                <div className="text-xs uppercase text-gray-400">
+                  {e.level.skill.name} — {e.level.name} · {SOURCE_TYPE_LABELS[e.sourceType]}
+                </div>
+                <p className="font-medium">{e.promptText}</p>
+                <p className="text-sm text-gray-600">Réponse attendue : {e.correctAnswer}</p>
+                <p className="text-xs text-gray-400">
+                  Source :{" "}
+                  <a href={e.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                    {e.sourceUrl}
+                  </a>{" "}
+                  ({e.sourceLicense})
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <form action={approveCuratedExercise}>
+                    <input type="hidden" name="id" value={e.id} />
+                    <button
+                      type="submit"
+                      className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700"
+                    >
+                      Valider
+                    </button>
+                  </form>
+                  <form action={rejectCuratedExercise}>
+                    <input type="hidden" name="id" value={e.id} />
                     <button
                       type="submit"
                       className="rounded-md border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"

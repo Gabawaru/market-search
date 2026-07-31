@@ -2,7 +2,13 @@ import { prisma } from "@/lib/db/prisma";
 import { createExerciseInstance } from "@/lib/exercises/instance";
 import { answersMatch } from "@/lib/exercises/answerMatching";
 import { issueEvaluationToken } from "@/lib/auth/evaluationToken";
-import { checkEvaluationEligibility, advanceToNextLevelIfPassed } from "@/lib/progression/unlockRules";
+import {
+  checkEvaluationEligibility,
+  advanceToNextLevelIfPassed,
+  canAttemptSkipEvaluation,
+  getOrCreateSkillProgress,
+} from "@/lib/progression/unlockRules";
+import type { Level } from "@/generated/prisma/client";
 import { getAiTextDetector } from "@/lib/integrity/aiTextDetector";
 import { recordIntegrityEvent } from "@/lib/integrity/scoring";
 import { awardPoints } from "@/lib/progression/points";
@@ -13,14 +19,7 @@ import type { Prisma } from "@/generated/prisma/client";
 
 export class EvaluationEligibilityError extends Error {}
 
-export async function startEvaluation(childId: string, skillId: string) {
-  const { eligible, level } = await checkEvaluationEligibility(childId, skillId);
-  if (!eligible || !level) {
-    throw new EvaluationEligibilityError(
-      "Pas encore prêt pour l'évaluation sur cette compétence — continue à t'entraîner.",
-    );
-  }
-
+async function createEvaluationForLevel(childId: string, level: Level) {
   const exercises = await prisma.exercise.findMany({ where: { levelId: level.id } });
   if (exercises.length === 0) {
     throw new Error("Aucun exercice configuré pour ce niveau");
@@ -47,6 +46,38 @@ export async function startEvaluation(childId: string, skillId: string) {
   });
 
   return { evaluationId: evaluation.id, token, attempts };
+}
+
+export async function startEvaluation(childId: string, skillId: string) {
+  const { eligible, level } = await checkEvaluationEligibility(childId, skillId);
+  if (!eligible || !level) {
+    throw new EvaluationEligibilityError(
+      "Pas encore prêt pour l'évaluation sur cette compétence — continue à t'entraîner.",
+    );
+  }
+  return createEvaluationForLevel(childId, level);
+}
+
+/** "Test out" : saute le pré-requis de pratique (checkEvaluationEligibility), mais garde le
+ * même niveau de rigueur sur l'évaluation elle-même — voir canAttemptSkipEvaluation. */
+export async function startSkipEvaluation(childId: string, skillId: string) {
+  const progress = await getOrCreateSkillProgress(childId, skillId);
+  if (!progress.currentLevelId) {
+    throw new EvaluationEligibilityError("Aucun niveau à évaluer pour cette compétence.");
+  }
+  const level = await prisma.level.findUniqueOrThrow({ where: { id: progress.currentLevelId } });
+
+  const lastEvaluation = await prisma.evaluation.findFirst({
+    where: { childId, levelId: level.id },
+    orderBy: { startedAt: "desc" },
+  });
+  if (!canAttemptSkipEvaluation(lastEvaluation?.startedAt ?? null, new Date(), level.retryCooldownHours)) {
+    throw new EvaluationEligibilityError(
+      `Tu as déjà tenté de passer directement récemment — réessaie dans ${level.retryCooldownHours}h.`,
+    );
+  }
+
+  return createEvaluationForLevel(childId, level);
 }
 
 export async function heartbeatEvaluation(evaluationId: string, childId: string) {

@@ -6,13 +6,18 @@ import { gradeEvaluationAttempt } from "@/lib/actions/assessment";
 import { isStrugglingWithSkill } from "@/lib/progression/unlockRules";
 import { listPendingHelpRequestsForChild } from "@/lib/progression/helpRequests";
 import { dismissHelpRequest } from "@/lib/actions/help";
+import { updateChildGradeLevel } from "@/lib/actions/auth";
+import { GRADE_LEVELS } from "@/lib/validation/schemas";
 
 export default async function ChildDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ childId: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { childId } = await params;
+  const { error } = await searchParams;
   const session = await auth();
   if (session?.user.role !== "PARENT") {
     redirect("/parent/login");
@@ -91,10 +96,33 @@ export default async function ChildDetailPage({
       <Link href="/dashboard" className="text-sm text-indigo-600 underline">
         ← Retour
       </Link>
-      <h1 className="text-2xl font-bold">
-        {child.name}
-        {child.gradeLevel && <span className="ml-2 text-base font-normal text-gray-500">({child.gradeLevel})</span>}
-      </h1>
+      <h1 className="text-2xl font-bold">{child.name}</h1>
+
+      {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+      <form action={updateChildGradeLevel} className="flex items-center gap-2 text-sm">
+        <input type="hidden" name="childId" value={child.id} />
+        <input type="hidden" name="returnTo" value={`/dashboard/${child.id}`} />
+        <label htmlFor="gradeLevel" className="text-gray-500">
+          Classe
+        </label>
+        <select
+          id="gradeLevel"
+          name="gradeLevel"
+          defaultValue={child.gradeLevel ?? ""}
+          className="rounded-md border px-2 py-1"
+        >
+          {!child.gradeLevel && <option value="">—</option>}
+          {GRADE_LEVELS.map((grade) => (
+            <option key={grade} value={grade}>
+              {grade}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className="rounded-md border px-2 py-1 hover:bg-gray-50">
+          Enregistrer
+        </button>
+      </form>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border p-3 text-center">
