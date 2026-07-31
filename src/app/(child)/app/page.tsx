@@ -64,6 +64,12 @@ export default async function ChildHomePage() {
       )}
 
       <Link
+        href="/app/courses"
+        className="rounded-lg border border-indigo-200 bg-white p-4 text-center font-semibold hover:bg-gray-50"
+      >
+        📚 Mes cours
+      </Link>
+      <Link
         href="/app/practice"
         className="flex flex-col items-center gap-2 rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
       >

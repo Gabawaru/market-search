@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createCuratedExercise } from "@/lib/devscan/curatedExercises";
+import { gradeLevelSchema } from "@/lib/validation/schemas";
 
 const bodySchema = z.object({
   levelId: z.string().min(1),
@@ -9,6 +10,8 @@ const bodySchema = z.object({
   sourceType: z.enum(["OFFICIAL_OPEN_SOURCE", "INSPIRED_BY_SOURCE"]),
   sourceUrl: z.string().trim().min(1).max(2000),
   sourceLicense: z.string().trim().min(1).max(200),
+  // Classe scolaire ciblée (facultatif) — regroupement par classe dans l'espace cours.
+  gradeLevel: gradeLevelSchema.optional(),
 });
 
 // Appelée par la Routine Claude de curation périodique (collège/lycée) : recherche de vraies
