@@ -43,9 +43,23 @@ export const teacherApplicationSchema = z.object({
   message: z.string().trim().max(2000).optional(),
 });
 
-// Limité au primaire/début de collège, cohérent avec le programme actuel (numération, opérations,
-// fractions) — pas de contenu distinct par classe pour l'instant, voir Child.gradeLevel.
-export const GRADE_LEVELS = ["CP", "CE1", "CE2", "CM1", "CM2", "6e", "5e", "4e", "3e"] as const;
+// Couvre tout le parcours CP → Terminale pour que le parent puisse déclarer la vraie classe de
+// l'enfant, même si le programme d'exercices actuel (numération, opérations, fractions) ne
+// couvre encore que le primaire — voir Child.gradeLevel et GRADE_LEVEL_ORDER_HINT.
+export const GRADE_LEVELS = [
+  "CP",
+  "CE1",
+  "CE2",
+  "CM1",
+  "CM2",
+  "6e",
+  "5e",
+  "4e",
+  "3e",
+  "2nde",
+  "1ere",
+  "Terminale",
+] as const;
 export const gradeLevelSchema = z.enum(GRADE_LEVELS, "Classe invalide");
 
 export const childCreateSchema = z.object({

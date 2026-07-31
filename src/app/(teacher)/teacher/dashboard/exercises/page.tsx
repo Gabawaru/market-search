@@ -62,6 +62,7 @@ export default async function TeacherExercisesPage({
                     <div className="text-sm text-gray-500">
                       {exercise.level.skill.name} — {exercise.level.name} · {STATUS_LABELS[exercise.status]}
                       {exercise.pointsRequired > 0 && ` · ${exercise.pointsRequired} points requis`}
+                      {exercise.documentMimeType && " · 📄 document joint"}
                     </div>
                   </div>
                   <Link
@@ -102,7 +103,11 @@ export default async function TeacherExercisesPage({
 
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <h2 className="text-lg font-semibold">Déposer un exercice</h2>
-        <form action={createTeacherExercise} className="flex flex-col gap-3">
+        <form
+          action={createTeacherExercise}
+          encType="multipart/form-data"
+          className="flex flex-col gap-3"
+        >
           <label className="flex flex-col gap-1 text-sm">
             Compétence et niveau
             <select name="levelId" required className="rounded-md border px-3 py-2">
@@ -124,6 +129,18 @@ export default async function TeacherExercisesPage({
           <label className="flex flex-col gap-1 text-sm">
             Corrigé de référence (pour vous seul, pas montré à l&apos;enfant)
             <textarea name="referenceAnswer" rows={2} className="rounded-md border px-3 py-2" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Document réel joint (photo, scan, PDF — facultatif)
+            <input
+              type="file"
+              name="document"
+              accept="image/png,image/jpeg,image/webp,application/pdf"
+              className="rounded-md border px-3 py-2"
+            />
+            <span className="text-xs text-gray-500">
+              Affiché à l&apos;enfant à côté de la case de réponse. 8 Mo max.
+            </span>
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Points requis pour y accéder

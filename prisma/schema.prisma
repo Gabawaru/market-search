@@ -290,6 +290,13 @@ model TeacherExercise {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
+  // Document réel (photo/scan de fiche, PDF) joint par le prof, affiché à l'enfant à côté des
+  // cases de réponse — à la place d'un simple énoncé retapé en texte. Stocké directement en base
+  // (pas de service de stockage externe à provisionner) : taille limitée côté action serveur.
+  documentData     Bytes?
+  documentMimeType String?
+  documentFileName String?
+
   submissions TeacherExerciseSubmission[]
 
   @@index([teacherId])
