@@ -84,6 +84,19 @@ export default async function ChildHomePage() {
         <ContentOriginBadge origin="teacher" />
       </Link>
       <Link
+        href="/app/curated-exercises"
+        className="flex flex-col items-center gap-2 rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Exercices collège/lycée
+        <ContentOriginBadge origin="curated" />
+      </Link>
+      <Link
+        href="/app/lessons"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Mes leçons
+      </Link>
+      <Link
         href="/app/messages"
         className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
       >

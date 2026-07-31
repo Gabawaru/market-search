@@ -75,6 +75,12 @@ export default async function TeacherDashboardPage() {
         Mes exercices
       </Link>
       <Link
+        href="/teacher/dashboard/lessons"
+        className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
+      >
+        Leçons
+      </Link>
+      <Link
         href="/teacher/change-password"
         className="rounded-lg border p-4 text-center font-medium hover:bg-gray-50"
       >

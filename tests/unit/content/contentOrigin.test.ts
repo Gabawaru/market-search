@@ -25,5 +25,14 @@ describe("contentOriginLabel", () => {
 describe("contentOriginIcon", () => {
   it("uses a distinct icon per origin", () => {
     expect(contentOriginIcon("teacher")).not.toBe(contentOriginIcon("generated"));
+    expect(contentOriginIcon("curated")).not.toBe(contentOriginIcon("generated"));
+    expect(contentOriginIcon("curated")).not.toBe(contentOriginIcon("teacher"));
+  });
+});
+
+describe("contentOriginLabel (curated)", () => {
+  it("mentions a real source without naming a specific author", () => {
+    const label = contentOriginLabel("curated");
+    expect(label.toLowerCase()).toContain("source");
   });
 });

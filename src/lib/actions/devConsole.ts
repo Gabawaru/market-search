@@ -45,6 +45,30 @@ export async function rejectDevSuggestion(formData: FormData) {
   redirect("/dev/console");
 }
 
+export async function approveCuratedExercise(formData: FormData) {
+  await requireDevAdmin();
+  const id = formData.get("id");
+  if (typeof id !== "string") redirect("/dev/console");
+
+  await prisma.curatedExercise.update({
+    where: { id },
+    data: { status: "APPROVED", reviewedAt: new Date() },
+  });
+  redirect("/dev/console");
+}
+
+export async function rejectCuratedExercise(formData: FormData) {
+  await requireDevAdmin();
+  const id = formData.get("id");
+  if (typeof id !== "string") redirect("/dev/console");
+
+  await prisma.curatedExercise.update({
+    where: { id },
+    data: { status: "REJECTED", reviewedAt: new Date() },
+  });
+  redirect("/dev/console");
+}
+
 // ---------------------------------------------------------------------------
 // Candidatures profs
 // ---------------------------------------------------------------------------

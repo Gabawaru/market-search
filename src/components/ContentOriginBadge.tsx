@@ -7,6 +7,7 @@ import {
 const STYLES: Record<ContentOrigin, string> = {
   generated: "border-gray-200 bg-gray-50 text-gray-500",
   teacher: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  curated: "border-sky-200 bg-sky-50 text-sky-700",
 };
 
 export function ContentOriginBadge({
