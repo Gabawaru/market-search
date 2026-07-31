@@ -11,6 +11,29 @@ function getString(formData: FormData, key: string): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/pdf",
+]);
+const MAX_DOCUMENT_SIZE_BYTES = 8 * 1024 * 1024;
+
+async function readOptionalDocument(formData: FormData) {
+  const file = formData.get("document");
+  if (!(file instanceof File) || file.size === 0) {
+    return { data: null, mimeType: null, fileName: null, error: null as string | null };
+  }
+  if (!ALLOWED_DOCUMENT_MIME_TYPES.has(file.type)) {
+    return { data: null, mimeType: null, fileName: null, error: "Format de document non accepté (image ou PDF uniquement)" };
+  }
+  if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
+    return { data: null, mimeType: null, fileName: null, error: "Document trop volumineux (8 Mo max)" };
+  }
+  const data = Buffer.from(await file.arrayBuffer());
+  return { data, mimeType: file.type, fileName: file.name, error: null };
+}
+
 // ---------------------------------------------------------------------------
 // Prof : déposer, publier, corriger
 // ---------------------------------------------------------------------------
@@ -28,6 +51,11 @@ export async function createTeacherExercise(formData: FormData) {
     redirect("/teacher/dashboard/exercises?error=Titre, niveau et énoncé sont requis");
   }
 
+  const document = await readOptionalDocument(formData);
+  if (document.error) {
+    redirect(`/teacher/dashboard/exercises?error=${encodeURIComponent(document.error)}`);
+  }
+
   const pointsRequired = Math.max(0, Number(pointsRequiredRaw) || 0);
 
   await prisma.teacherExercise.create({
@@ -38,6 +66,9 @@ export async function createTeacherExercise(formData: FormData) {
       promptText,
       referenceAnswer,
       pointsRequired,
+      documentData: document.data,
+      documentMimeType: document.mimeType,
+      documentFileName: document.fileName,
     },
   });
 

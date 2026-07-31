@@ -48,6 +48,29 @@ export default async function TeacherExerciseDetailPage({
       <ContentOriginBadge origin="teacher" authorName={teacher?.name} className="self-start" />
       <p className="whitespace-pre-wrap rounded-lg border p-4">{exercise.promptText}</p>
 
+      {exercise.documentMimeType && (
+        <div className="flex flex-col gap-2 rounded-lg border p-4">
+          <h2 className="text-sm font-semibold text-gray-500">Document du prof</h2>
+          {exercise.documentMimeType.startsWith("image/") ? (
+            /* eslint-disable-next-line @next/next/no-img-element -- image binaire servie depuis la DB, pas un asset optimisable par next/image */
+            <img
+              src={`/api/teacher-exercises/${exercise.id}/document`}
+              alt={`Document joint : ${exercise.title}`}
+              className="max-h-96 w-auto self-center rounded-md border"
+            />
+          ) : (
+            <a
+              href={`/api/teacher-exercises/${exercise.id}/document`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="self-start rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700"
+            >
+              📄 Ouvrir le document (PDF)
+            </a>
+          )}
+        </div>
+      )}
+
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       <form action={submitTeacherExerciseAnswer} className="flex flex-col gap-3">

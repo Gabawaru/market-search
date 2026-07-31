@@ -35,6 +35,17 @@ export default async function TeacherExerciseSubmissionsPage({
         {exercise.level.skill.name} — {exercise.level.name}
       </p>
 
+      {exercise.documentMimeType && (
+        <a
+          href={`/api/teacher-exercises/${exercise.id}/document`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="self-start rounded-md border px-3 py-2 text-sm text-emerald-600 underline"
+        >
+          📄 Voir le document joint
+        </a>
+      )}
+
       {submissions.length === 0 ? (
         <p className="text-sm text-gray-500">Aucune copie reçue pour l&apos;instant.</p>
       ) : (
