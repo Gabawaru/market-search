@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getChildSession } from "@/lib/auth/childSession";
 import { prisma } from "@/lib/db/prisma";
 import { spendPoints, InsufficientPointsError } from "@/lib/progression/points";
+import { getStreakFreezeEligibility } from "@/lib/progression/streakFreezeEligibility";
 
 export async function redeemReward(formData: FormData) {
   const session = await getChildSession();
@@ -19,6 +20,13 @@ export async function redeemReward(formData: FormData) {
   const item = await prisma.rewardCatalogItem.findUnique({ where: { id: itemId } });
   if (!item || !item.active) {
     redirect(`/app/rewards?error=${encodeURIComponent("Récompense introuvable")}`);
+  }
+
+  if (item.kind === "STREAK_FREEZE") {
+    const eligibility = await getStreakFreezeEligibility(session.childId);
+    if (!eligibility.eligible) {
+      redirect(`/app/rewards?error=${encodeURIComponent(eligibility.reason ?? "Pas encore disponible")}`);
+    }
   }
 
   try {

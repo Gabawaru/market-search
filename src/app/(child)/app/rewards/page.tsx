@@ -4,6 +4,7 @@ import { getChildSession } from "@/lib/auth/childSession";
 import { prisma } from "@/lib/db/prisma";
 import { getOrCreateWallet } from "@/lib/progression/points";
 import { redeemReward } from "@/lib/actions/rewards";
+import { getStreakFreezeEligibility } from "@/lib/progression/streakFreezeEligibility";
 
 export default async function RewardsPage({
   searchParams,
@@ -16,19 +17,21 @@ export default async function RewardsPage({
     redirect("/child/select-profile");
   }
 
-  const [wallet, streak, badges, catalog, availableStreakFreezes] = await Promise.all([
-    getOrCreateWallet(session.childId),
-    prisma.streak.findUnique({ where: { childId: session.childId } }),
-    prisma.childBadge.findMany({
-      where: { childId: session.childId },
-      include: { badge: true },
-      orderBy: { earnedAt: "desc" },
-    }),
-    prisma.rewardCatalogItem.findMany({ where: { active: true }, orderBy: { cost: "asc" } }),
-    prisma.rewardRedemption.count({
-      where: { childId: session.childId, consumedAt: null, item: { kind: "STREAK_FREEZE" } },
-    }),
-  ]);
+  const [wallet, streak, badges, catalog, availableStreakFreezes, streakFreezeEligibility] =
+    await Promise.all([
+      getOrCreateWallet(session.childId),
+      prisma.streak.findUnique({ where: { childId: session.childId } }),
+      prisma.childBadge.findMany({
+        where: { childId: session.childId },
+        include: { badge: true },
+        orderBy: { earnedAt: "desc" },
+      }),
+      prisma.rewardCatalogItem.findMany({ where: { active: true }, orderBy: { cost: "asc" } }),
+      prisma.rewardRedemption.count({
+        where: { childId: session.childId, consumedAt: null, item: { kind: "STREAK_FREEZE" } },
+      }),
+      getStreakFreezeEligibility(session.childId),
+    ]);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-12">
@@ -76,25 +79,31 @@ export default async function RewardsPage({
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Échanger mes points</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          {catalog.map((item) => (
-            <form
-              key={item.id}
-              action={redeemReward}
-              className="flex flex-col gap-2 rounded-lg border p-4"
-            >
-              <input type="hidden" name="itemId" value={item.id} />
-              <div className="text-2xl">{item.icon}</div>
-              <div className="font-medium">{item.label}</div>
-              <p className="text-sm text-gray-500">{item.description}</p>
-              <button
-                type="submit"
-                disabled={wallet.balance < item.cost}
-                className="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          {catalog.map((item) => {
+            const isStreakFreeze = item.kind === "STREAK_FREEZE";
+            const blockedReason = isStreakFreeze ? streakFreezeEligibility.reason : undefined;
+            const disabled = wallet.balance < item.cost || Boolean(blockedReason);
+            return (
+              <form
+                key={item.id}
+                action={redeemReward}
+                className="flex flex-col gap-2 rounded-lg border p-4"
               >
-                {item.cost} points
-              </button>
-            </form>
-          ))}
+                <input type="hidden" name="itemId" value={item.id} />
+                <div className="text-2xl">{item.icon}</div>
+                <div className="font-medium">{item.label}</div>
+                <p className="text-sm text-gray-500">{item.description}</p>
+                {blockedReason && <p className="text-xs text-amber-700">{blockedReason}</p>}
+                <button
+                  type="submit"
+                  disabled={disabled}
+                  className="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                >
+                  {item.cost} points
+                </button>
+              </form>
+            );
+          })}
         </div>
       </section>
     </main>
