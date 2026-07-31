@@ -4,10 +4,19 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { createDevSuggestion } from "@/lib/devscan/suggestions";
+import { gradeLevelSchema } from "@/lib/validation/schemas";
 
 function getString(formData: FormData, key: string): string | null {
   const value = formData.get(key);
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+/** Classe optionnelle : absente → null ("Non classé"), présente → doit être une classe valide. */
+function readOptionalGradeLevel(formData: FormData): string | null {
+  const raw = getString(formData, "gradeLevel");
+  if (!raw) return null;
+  const parsed = gradeLevelSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }
 
 const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
@@ -27,6 +36,7 @@ export async function createLesson(formData: FormData) {
   const levelId = getString(formData, "levelId");
   const title = getString(formData, "title");
   const type = getString(formData, "type");
+  const gradeLevel = readOptionalGradeLevel(formData);
   if (!levelId || !title || (type !== "VIDEO" && type !== "DOCUMENT" && type !== "AI_PAGE")) {
     redirect("/teacher/dashboard/lessons?error=Titre, niveau et type sont requis");
   }
@@ -36,7 +46,7 @@ export async function createLesson(formData: FormData) {
     if (!videoUrl) {
       redirect("/teacher/dashboard/lessons?error=Lien vidéo requis pour une leçon vidéo");
     }
-    await prisma.lesson.create({ data: { levelId, title, type: "VIDEO", videoUrl } });
+    await prisma.lesson.create({ data: { levelId, title, type: "VIDEO", videoUrl, gradeLevel } });
   } else if (type === "DOCUMENT") {
     const file = formData.get("document");
     if (!(file instanceof File) || file.size === 0) {
@@ -57,6 +67,7 @@ export async function createLesson(formData: FormData) {
         documentData,
         documentMimeType: file.type,
         documentFileName: file.name,
+        gradeLevel,
       },
     });
   } else {
@@ -70,7 +81,7 @@ export async function createLesson(formData: FormData) {
       );
     }
     await prisma.lesson.create({
-      data: { levelId, title, type: "AI_PAGE", contentMarkdown, contentSourceUrl },
+      data: { levelId, title, type: "AI_PAGE", contentMarkdown, contentSourceUrl, gradeLevel },
     });
   }
 
@@ -101,6 +112,12 @@ export async function requestCurationBatch(formData: FormData) {
   }
 
   const note = getString(formData, "note");
+  // returnTo restreint aux pages du tableau de bord prof (jamais une redirection ouverte).
+  const rawReturnTo = getString(formData, "returnTo");
+  const returnTo =
+    rawReturnTo && rawReturnTo.startsWith("/teacher/dashboard/")
+      ? rawReturnTo
+      : "/teacher/dashboard/lessons";
 
   await createDevSuggestion({
     category: "CONTENT",
@@ -110,5 +127,5 @@ export async function requestCurationBatch(formData: FormData) {
       : `Demandée par ${session.user.name} (prof) — nouveau lot d'exercices collège/lycée sourcés sur de vraies ressources académiques, à valider dans cet espace une fois proposés.`,
   });
 
-  redirect("/teacher/dashboard/lessons?success=Demande envoyée");
+  redirect(`${returnTo}?success=Demande envoyée`);
 }

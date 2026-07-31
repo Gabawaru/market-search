@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { createLesson, deleteLesson, requestCurationBatch } from "@/lib/actions/lessons";
+import { GRADE_LEVELS } from "@/lib/validation/schemas";
 
 const TYPE_LABELS: Record<string, string> = {
   VIDEO: "Vidéo",
@@ -79,6 +80,7 @@ export default async function TeacherLessonsPage({
                   <div className="font-medium">{lesson.title}</div>
                   <div className="text-sm text-gray-500">
                     {lesson.level.skill.name} — {lesson.level.name} · {TYPE_LABELS[lesson.type]}
+                    {lesson.gradeLevel && ` · ${lesson.gradeLevel}`}
                   </div>
                 </div>
                 <form action={deleteLesson}>
@@ -109,6 +111,17 @@ export default async function TeacherLessonsPage({
           <label className="flex flex-col gap-1 text-sm">
             Titre
             <input type="text" name="title" required className="rounded-md border px-3 py-2" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Classe (facultatif)
+            <select name="gradeLevel" className="rounded-md border px-3 py-2">
+              <option value="">Non classé</option>
+              {GRADE_LEVELS.map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Type

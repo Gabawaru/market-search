@@ -8,6 +8,7 @@ import {
   unpublishTeacherExercise,
   deleteTeacherExercise,
 } from "@/lib/actions/teacherExercises";
+import { GRADE_LEVELS } from "@/lib/validation/schemas";
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Brouillon",
@@ -61,6 +62,7 @@ export default async function TeacherExercisesPage({
                     <div className="font-medium">{exercise.title}</div>
                     <div className="text-sm text-gray-500">
                       {exercise.level.skill.name} — {exercise.level.name} · {STATUS_LABELS[exercise.status]}
+                      {exercise.gradeLevel && ` · ${exercise.gradeLevel}`}
                       {exercise.pointsRequired > 0 && ` · ${exercise.pointsRequired} points requis`}
                       {exercise.documentMimeType && " · 📄 document joint"}
                     </div>
@@ -121,6 +123,17 @@ export default async function TeacherExercisesPage({
           <label className="flex flex-col gap-1 text-sm">
             Titre
             <input type="text" name="title" required className="rounded-md border px-3 py-2" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Classe (facultatif)
+            <select name="gradeLevel" className="rounded-md border px-3 py-2">
+              <option value="">Non classé</option>
+              {GRADE_LEVELS.map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Énoncé

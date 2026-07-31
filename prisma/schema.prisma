@@ -307,6 +307,10 @@ model TeacherExercise {
   documentMimeType String?
   documentFileName String?
 
+  // Classe scolaire ciblée (ex. "6e"), optionnelle et distincte du Level du programme — sert à
+  // regrouper le contenu par classe dans l'espace cours (voir GRADE_LEVELS). null = "Non classé".
+  gradeLevel String?
+
   submissions TeacherExerciseSubmission[]
 
   @@index([teacherId])
@@ -368,6 +372,8 @@ model CuratedExercise {
   sourceType      CuratedExerciseSourceType
   sourceUrl       String
   sourceLicense   String
+  // Classe scolaire ciblée (ex. "5e"), optionnelle — regroupement par classe dans l'espace cours.
+  gradeLevel      String?
   status          CuratedExerciseStatus     @default(PENDING)
   createdAt       DateTime                  @default(now())
   reviewedAt      DateTime?
@@ -416,6 +422,8 @@ model Lesson {
   documentFileName String?
   contentMarkdown  String?
   contentSourceUrl String?
+  // Classe scolaire ciblée (ex. "CM1"), optionnelle — regroupement par classe dans l'espace cours.
+  gradeLevel       String?
   createdAt        DateTime   @default(now())
 
   @@index([levelId])

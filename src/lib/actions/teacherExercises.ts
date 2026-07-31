@@ -5,10 +5,19 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { getChildSession } from "@/lib/auth/childSession";
 import { checkTeacherExerciseAccess } from "@/lib/progression/teacherExercises";
+import { gradeLevelSchema } from "@/lib/validation/schemas";
 
 function getString(formData: FormData, key: string): string | null {
   const value = formData.get(key);
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+/** Classe optionnelle : absente → null ("Non classé"), présente → doit être une classe valide. */
+function readOptionalGradeLevel(formData: FormData): string | null {
+  const raw = getString(formData, "gradeLevel");
+  if (!raw) return null;
+  const parsed = gradeLevelSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }
 
 const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
@@ -57,6 +66,7 @@ export async function createTeacherExercise(formData: FormData) {
   }
 
   const pointsRequired = Math.max(0, Number(pointsRequiredRaw) || 0);
+  const gradeLevel = readOptionalGradeLevel(formData);
 
   await prisma.teacherExercise.create({
     data: {
@@ -66,6 +76,7 @@ export async function createTeacherExercise(formData: FormData) {
       promptText,
       referenceAnswer,
       pointsRequired,
+      gradeLevel,
       documentData: document.data,
       documentMimeType: document.mimeType,
       documentFileName: document.fileName,

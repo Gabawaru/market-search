@@ -12,6 +12,7 @@ export function createCuratedExercise(params: {
   sourceType: CuratedExerciseSourceType;
   sourceUrl: string;
   sourceLicense: string;
+  gradeLevel?: string | null;
 }) {
   return prisma.curatedExercise.create({
     data: {
@@ -21,6 +22,7 @@ export function createCuratedExercise(params: {
       sourceType: params.sourceType,
       sourceUrl: params.sourceUrl,
       sourceLicense: params.sourceLicense,
+      gradeLevel: params.gradeLevel ?? null,
     },
   });
 }
