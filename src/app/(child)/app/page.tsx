@@ -43,7 +43,9 @@ export default async function ChildHomePage() {
           <div className="text-xs text-gray-500">points</div>
         </div>
         <div className="flex-1 rounded-lg border p-3 text-center">
-          <div className="text-xl font-bold text-orange-500">{streak?.currentStreak ?? 0}🔥</div>
+          <div className="animate-[streak-pop_0.5s_ease-out] text-xl font-bold text-orange-500">
+            {streak?.currentStreak ?? 0}🔥
+          </div>
           <div className="text-xs text-gray-500">jours de suite</div>
         </div>
       </div>

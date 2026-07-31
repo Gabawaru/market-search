@@ -51,7 +51,15 @@ function integrityMessage(type: ReportableEventType): string {
   }
 }
 
-export function EvaluationGuard({ skillId, skillName }: { skillId: string; skillName: string }) {
+export function EvaluationGuard({
+  skillId,
+  skillName,
+  skipMode = false,
+}: {
+  skillId: string;
+  skillName: string;
+  skipMode?: boolean;
+}) {
   const [phase, setPhase] = useState<"prompt" | "running" | "finished">("prompt");
   const [attempts, setAttempts] = useState<AttemptPayload[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -145,7 +153,7 @@ export function EvaluationGuard({ skillId, skillName }: { skillId: string; skill
     const res = await fetch("/api/evaluations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ skillId }),
+      body: JSON.stringify({ skillId, mode: skipMode ? "skip" : "normal" }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
