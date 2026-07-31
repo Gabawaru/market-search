@@ -15,7 +15,10 @@ function isUniqueConstraintError(error: unknown): boolean {
 // Correspondance approximative classe → ordre de compétence attendu (le programme actuel n'a
 // que 6 compétences communes à tout le monde, sans distinction par classe — voir Child.gradeLevel
 // dans prisma/schema.prisma). Sert uniquement de signal d'appoint pour départager une égalité,
-// jamais un filtre strict.
+// jamais un filtre strict. Le champ classe couvre CP → Terminale (voir GRADE_LEVELS), mais le
+// programme d'exercices s'arrête à la 6ᵉ compétence (fractions) : tout niveau collège/lycée
+// pointe donc vers la dernière compétence disponible plutôt que vers un contenu qui n'existe pas
+// encore.
 const GRADE_LEVEL_ORDER_HINT: Record<string, number> = {
   CP: 1,
   CE1: 2,
@@ -26,6 +29,9 @@ const GRADE_LEVEL_ORDER_HINT: Record<string, number> = {
   "5e": 6,
   "4e": 6,
   "3e": 6,
+  "2nde": 6,
+  "1ere": 6,
+  Terminale: 6,
 };
 
 function matchesGradeLevel(skillOrder: number, gradeLevel: string | null): boolean | undefined {
