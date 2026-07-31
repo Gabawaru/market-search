@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
-import { createLesson, deleteLesson } from "@/lib/actions/lessons";
+import { createLesson, deleteLesson, requestCurationBatch } from "@/lib/actions/lessons";
 
 const TYPE_LABELS: Record<string, string> = {
   VIDEO: "Vidéo",
@@ -13,9 +13,9 @@ const TYPE_LABELS: Record<string, string> = {
 export default async function TeacherLessonsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; success?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, success } = await searchParams;
   const session = await auth();
   if (session?.user.role !== "TEACHER") redirect("/teacher/login");
 
@@ -42,6 +42,31 @@ export default async function TeacherLessonsPage({
       </p>
 
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {success && (
+        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
+      )}
+
+      <section className="flex flex-col gap-3 rounded-lg border border-sky-300 bg-sky-50 p-4">
+        <h2 className="text-lg font-semibold text-sky-900">Exercices collège/lycée</h2>
+        <p className="text-sm text-sky-800">
+          Manque un exercice sur un point précis ? Envoie une demande — un nouveau lot sera
+          recherché sur de vraies sources académiques et vérifié avant publication.
+        </p>
+        <form action={requestCurationBatch} className="flex flex-col gap-2">
+          <textarea
+            name="note"
+            rows={2}
+            placeholder="Précise si besoin (ex. « trigonométrie en 1ère »)"
+            className="rounded-md border bg-white px-3 py-2 text-sm"
+          />
+          <button
+            type="submit"
+            className="self-start rounded-md bg-sky-600 px-3 py-2 text-sm text-white hover:bg-sky-700"
+          >
+            Demander une nouvelle curation
+          </button>
+        </form>
+      </section>
 
       {lessons.length === 0 ? (
         <p className="text-sm text-gray-500">Aucune leçon déposée pour l&apos;instant.</p>

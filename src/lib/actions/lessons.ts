@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
+import { createDevSuggestion } from "@/lib/devscan/suggestions";
 
 function getString(formData: FormData, key: string): string | null {
   const value = formData.get(key);
@@ -87,4 +88,27 @@ export async function deleteLesson(formData: FormData) {
 
   await prisma.lesson.delete({ where: { id: lessonId } });
   redirect("/teacher/dashboard/lessons");
+}
+
+/** Un prof ne peut pas déclencher la recherche/rédaction d'exercices lui-même — ça reste un vrai
+ * travail de raisonnement, pas un script. Ce bouton crée juste une demande visible dans l'espace
+ * développeur (même file que le reste des suggestions), traitée manuellement lors d'une prochaine
+ * session — pas d'automatisation, mais une vraie trace au lieu de devoir redemander en direct. */
+export async function requestCurationBatch(formData: FormData) {
+  const session = await auth();
+  if (session?.user.role !== "TEACHER") {
+    redirect("/teacher/login");
+  }
+
+  const note = getString(formData, "note");
+
+  await createDevSuggestion({
+    category: "CONTENT",
+    title: "Nouvelle curation d'exercices collège/lycée demandée",
+    description: note
+      ? `Demandée par ${session.user.name} (prof) : ${note}`
+      : `Demandée par ${session.user.name} (prof) — nouveau lot d'exercices collège/lycée sourcés sur de vraies ressources académiques, à valider dans cet espace une fois proposés.`,
+  });
+
+  redirect("/teacher/dashboard/lessons?success=Demande envoyée");
 }
