@@ -17,8 +17,10 @@ import {
   childDirectLoginSchema,
   passwordSchema,
   emailSchema,
+  gradeLevelSchema,
 } from "@/lib/validation/schemas";
 import { setChildSessionCookie, clearChildSessionCookie } from "@/lib/auth/childSession";
+import { canTeacherAccessChild } from "@/lib/progression/teacherInsights";
 
 function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -422,6 +424,67 @@ export async function createChildProfile(formData: FormData) {
   });
 
   redirect("/dashboard");
+}
+
+/** Un prof peut créer un profil enfant de façon autonome, sans passer par un parent — l'enfant
+ * se connecte alors directement via prénom + code secret (loginChildByNamePin), pas via la
+ * sélection de profil réservée aux comptes enfants d'un parent connecté. */
+export async function createChildProfileAsTeacher(formData: FormData) {
+  const session = await auth();
+  if (session?.user.role !== "TEACHER") {
+    redirect("/teacher/login");
+  }
+
+  const parsed = childCreateSchema.safeParse({
+    name: formData.get("name"),
+    birthYear: formData.get("birthYear"),
+    gradeLevel: formData.get("gradeLevel"),
+    pin: formData.get("pin"),
+  });
+  if (!parsed.success) {
+    redirect(
+      `/teacher/dashboard/students/new?error=${encodeURIComponent(parsed.error.issues[0].message)}`,
+    );
+  }
+
+  const { name, birthYear, gradeLevel, pin } = parsed.data;
+  const pinHash = await hashSecret(pin);
+
+  await prisma.child.create({
+    data: { teacherId: session.user.id, name, birthYear, gradeLevel, pinHash },
+  });
+
+  redirect("/teacher/dashboard/students");
+}
+
+/** Change la classe d'un enfant après coup (pas seulement figée à la création) — autorisé pour
+ * le parent propriétaire, ou pour un prof ayant un accompagnement réellement noué avec cet
+ * enfant (même périmètre que listStrugglingChildrenForTeacher, jamais "n'importe quel prof"). */
+export async function updateChildGradeLevel(formData: FormData) {
+  const session = await auth();
+  const childId = formData.get("childId");
+  const returnTo = formData.get("returnTo");
+  if (typeof childId !== "string" || typeof returnTo !== "string") {
+    redirect("/dashboard");
+  }
+
+  const parsed = gradeLevelSchema.safeParse(formData.get("gradeLevel"));
+  if (!parsed.success) {
+    redirect(`${returnTo}?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+  }
+
+  if (session?.user.role === "PARENT") {
+    const child = await prisma.child.findFirst({ where: { id: childId, parentId: session.user.id } });
+    if (!child) redirect("/dashboard");
+  } else if (session?.user.role === "TEACHER") {
+    if (!(await canTeacherAccessChild(session.user.id, childId))) redirect("/teacher/dashboard");
+  } else {
+    redirect("/parent/login");
+  }
+
+  await prisma.child.update({ where: { id: childId }, data: { gradeLevel: parsed.data } });
+
+  redirect(returnTo);
 }
 
 export async function loginChild(formData: FormData) {

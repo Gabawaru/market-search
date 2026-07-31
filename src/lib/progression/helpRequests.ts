@@ -37,7 +37,10 @@ function readPayload(payload: unknown): HelpRequestPayload | null {
 
 // Le filtrage se fait en mémoire plutôt qu'en JSON path SQL : le volume est minuscule (demandes
 // non lues d'un seul parent) et on ne dépend d'aucune sémantique JSON propre au provider.
-async function listUnreadHelpRequests(parentId: string) {
+// parentId peut être null (enfant créé directement par un prof, sans parent) — aucune demande
+// d'aide possible dans ce cas, il n'y a personne à qui l'adresser.
+async function listUnreadHelpRequests(parentId: string | null) {
+  if (!parentId) return [];
   const notifications = await prisma.notification.findMany({
     where: { parentId, type: HELP_REQUEST_NOTIFICATION_TYPE, readAt: null },
     orderBy: { createdAt: "desc" },
@@ -49,13 +52,13 @@ async function listUnreadHelpRequests(parentId: string) {
   });
 }
 
-export async function listPendingHelpRequestsForChild(parentId: string, childId: string) {
+export async function listPendingHelpRequestsForChild(parentId: string | null, childId: string) {
   const requests = await listUnreadHelpRequests(parentId);
   return requests.filter((request) => request.childId === childId);
 }
 
 export async function hasPendingHelpRequest(
-  parentId: string,
+  parentId: string | null,
   childId: string,
   skillId: string,
 ): Promise<boolean> {
@@ -64,13 +67,18 @@ export async function hasPendingHelpRequest(
 }
 
 /** Ne crée rien si une demande sur la même compétence est déjà en attente — un enfant qui
- * appuie plusieurs fois ne doit pas noyer ses parents sous les notifications. */
+ * appuie plusieurs fois ne doit pas noyer ses parents sous les notifications. Ne crée rien non
+ * plus si l'enfant n'a pas de parent (profil créé directement par un prof, voir Child.teacherId)
+ * — il n'y a alors personne à notifier ; le prof voit déjà le signal via
+ * listStrugglingChildrenForTeacher. */
 export async function createHelpRequest(params: {
-  parentId: string;
+  parentId: string | null;
   childId: string;
   skillId: string;
   skillName: string;
 }) {
+  if (!params.parentId) return null;
+
   const alreadyPending = await hasPendingHelpRequest(
     params.parentId,
     params.childId,

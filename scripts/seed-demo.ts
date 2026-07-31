@@ -120,9 +120,21 @@ async function main() {
     }
   }
 
+  // Suppression définitive décidée explicitement par Gabriel — Jérémie et Nathan sont conservés
+  // avec leur progression intacte (onDelete: Cascade nettoie proprement points/séries/tentatives/
+  // évaluations de l'enfant supprimé). Idempotent : ne fait rien si déjà supprimé. Volontairement
+  // absents de childSpecs ci-dessous pour ne jamais être recréés à un déploiement suivant.
+  const childrenToRemove = ["Lina", "Yanis"];
+  for (const name of childrenToRemove) {
+    const toRemove = existingChildren.find((c) => c.name === name);
+    if (toRemove) {
+      await prisma.child.delete({ where: { id: toRemove.id } });
+      console.log(`Enfant   : ${name} supprimé définitivement (à la demande de Gabriel)`);
+      existingChildren = existingChildren.filter((c) => c.id !== toRemove.id);
+    }
+  }
+
   const childSpecs = [
-    { name: "Lina", birthYear: new Date().getFullYear() - 8, gradeLevel: "CE2" },
-    { name: "Yanis", birthYear: new Date().getFullYear() - 10, gradeLevel: "CM2" },
     { name: "Jérémie", birthYear: new Date().getFullYear() - 9, gradeLevel: "CM1" },
     { name: "Nathan", birthYear: new Date().getFullYear() - 11, gradeLevel: "6e" },
   ];

@@ -36,8 +36,13 @@ model Parent {
 
 model Child {
   id         String   @id @default(cuid())
-  parentId   String
-  parent     Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  // Un enfant appartient à exactement un parent OU un prof (jamais les deux, jamais aucun) —
+  // contrainte applicative, pas de CHECK SQL simple avec deux colonnes nullable. Un prof peut
+  // créer un profil enfant de façon autonome (teacherId), sans passer par un parent.
+  parentId   String?
+  parent     Parent?  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  teacherId  String?
+  teacher    Teacher? @relation("TeacherStudents", fields: [teacherId], references: [id], onDelete: Cascade)
   name       String
   pinHash    String
   avatarKey  String?
@@ -68,6 +73,7 @@ model Child {
   teacherExerciseSubmissions TeacherExerciseSubmission[]
 
   @@index([parentId])
+  @@index([teacherId])
 }
 
 model Teacher {
@@ -93,6 +99,7 @@ model Teacher {
   notifications       Notification[]
   passwordResetTokens PasswordResetToken[]
   teacherExercises    TeacherExercise[]
+  students            Child[]                 @relation("TeacherStudents")
 }
 
 enum TeacherApplicationStatus {

@@ -13,15 +13,17 @@ export async function getOrCreateChildParentTeacherThread(childId: string, teach
   });
   if (existing) return existing;
 
+  // Pas de participant PARENT si l'enfant n'a pas de parent (profil créé directement par un
+  // prof, voir Child.teacherId) — un rôle PARENT sans parentId n'aurait aucun sens.
   return prisma.chatThread.create({
     data: {
       type: "CHILD_PARENT_TEACHER",
       childId,
       participants: {
         create: [
-          { role: "PARENT", parentId: child.parentId },
-          { role: "CHILD", childId },
-          { role: "TEACHER", teacherId },
+          ...(child.parentId ? [{ role: "PARENT" as const, parentId: child.parentId }] : []),
+          { role: "CHILD" as const, childId },
+          { role: "TEACHER" as const, teacherId },
         ],
       },
     },

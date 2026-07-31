@@ -37,6 +37,16 @@ export async function listChildIdsVisibleToTeacher(teacherId: string): Promise<s
   return [...childIds];
 }
 
+/** Un prof a accès à un enfant soit parce qu'il l'a créé lui-même directement (Child.teacherId),
+ * soit parce qu'un accompagnement/fil de discussion l'y autorise (listChildIdsVisibleToTeacher).
+ * Jamais faire confiance à un enfant deviné par ID sans repasser par cette vérification. */
+export async function canTeacherAccessChild(teacherId: string, childId: string): Promise<boolean> {
+  const ownChild = await prisma.child.findFirst({ where: { id: childId, teacherId } });
+  if (ownChild) return true;
+  const visibleIds = await listChildIdsVisibleToTeacher(teacherId);
+  return visibleIds.includes(childId);
+}
+
 export interface StrugglingChildSignal {
   childId: string;
   childName: string;

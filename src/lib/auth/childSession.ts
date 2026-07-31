@@ -12,7 +12,9 @@ function getSecret() {
 
 export interface ChildSessionPayload {
   childId: string;
-  parentId: string;
+  // null pour un enfant créé directement par un prof (voir Child.teacherId) — n'a alors aucun
+  // parent à notifier (aide, messagerie partagée, boîte à suggestions).
+  parentId: string | null;
   name: string;
 }
 
@@ -31,7 +33,7 @@ export async function verifyChildSessionToken(
     const { payload } = await jwtVerify(token, getSecret());
     if (
       typeof payload.childId === "string" &&
-      typeof payload.parentId === "string" &&
+      (payload.parentId === null || typeof payload.parentId === "string") &&
       typeof payload.name === "string"
     ) {
       return { childId: payload.childId, parentId: payload.parentId, name: payload.name };
