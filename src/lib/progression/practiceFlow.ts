@@ -71,14 +71,28 @@ export async function recordPracticeAttempt(params: RecordPracticeAttemptParams)
     where: { childId: params.childId, exerciseInstance: { exercise: { levelId: level.id } } },
   });
 
-  // Petits points même sur une erreur (participation) — l'effort compte, pas seulement le
-  // résultat, cohérent avec l'esprit "encouragement" du produit.
-  await awardPoints(
-    params.childId,
-    "EARNED_EXERCISE",
-    isCorrect ? 3 : 1,
-    isCorrect ? "Bonne réponse en entraînement" : "Exercice tenté en entraînement",
-  );
+  // Peu de points pour un exercice (1 si juste, rien si faux) — l'entraînement rapporte peu, ce
+  // sont les évaluations et la complétion d'une catégorie qui rapportent gros (cf. barème demandé).
+  if (isCorrect) {
+    await awardPoints(params.childId, "EARNED_EXERCISE", 1, "Bonne réponse en entraînement");
+  }
+
+  const readyForEvaluation = isReadyForEvaluation(masteryScore, attemptsCount, level);
+
+  // Bonus "catégorie complétée" (+29), une seule fois par niveau : quand l'enfant atteint pour la
+  // première fois le seuil de maîtrise du niveau. L'unicité [childId, levelId] rend l'opération
+  // idempotente — une violation d'unicité signifie "déjà attribué", on l'ignore.
+  if (readyForEvaluation) {
+    try {
+      await prisma.levelCompletionBonus.create({
+        data: { childId: params.childId, levelId: level.id },
+      });
+      await awardPoints(params.childId, "EARNED_EXERCISE", 29, "Catégorie d'exercices complétée");
+    } catch {
+      // déjà attribué pour ce niveau — rien à faire
+    }
+  }
+
   const { currentStreak } = await recordDailyActivity(params.childId);
   await checkExerciseCountBadges(params.childId);
 
@@ -93,7 +107,7 @@ export async function recordPracticeAttempt(params: RecordPracticeAttemptParams)
     isCorrect,
     correctAnswer: correctAnswer.value,
     masteryScore,
-    readyForEvaluation: isReadyForEvaluation(masteryScore, attemptsCount, level),
+    readyForEvaluation,
     currentStreak,
     offerHelp: shouldOfferHelp(countTrailingIncorrect(recentAttempts)),
   };

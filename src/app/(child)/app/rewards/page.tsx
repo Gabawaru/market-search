@@ -3,22 +3,36 @@ import { redirect } from "next/navigation";
 import { getChildSession } from "@/lib/auth/childSession";
 import { prisma } from "@/lib/db/prisma";
 import { getOrCreateWallet } from "@/lib/progression/points";
-import { redeemReward } from "@/lib/actions/rewards";
+import { redeemReward, openMysteryBox } from "@/lib/actions/rewards";
 import { getStreakFreezeEligibility } from "@/lib/progression/streakFreezeEligibility";
+import { getMysteryBoxStatus, MYSTERY_BOX_COST } from "@/lib/progression/mysteryBox";
+import { MysteryBoxResult } from "@/components/child/MysteryBoxResult";
 
 export default async function RewardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    success?: string;
+    boxReward?: string;
+    boxJackpot?: string;
+  }>;
 }) {
-  const { error, success } = await searchParams;
+  const { error, success, boxReward, boxJackpot } = await searchParams;
   const session = await getChildSession();
   if (!session) {
     redirect("/child/select-profile");
   }
 
-  const [wallet, streak, badges, catalog, availableStreakFreezes, streakFreezeEligibility] =
-    await Promise.all([
+  const [
+    wallet,
+    streak,
+    badges,
+    catalog,
+    availableStreakFreezes,
+    streakFreezeEligibility,
+    mysteryBox,
+  ] = await Promise.all([
       getOrCreateWallet(session.childId),
       prisma.streak.findUnique({ where: { childId: session.childId } }),
       prisma.childBadge.findMany({
@@ -31,7 +45,11 @@ export default async function RewardsPage({
         where: { childId: session.childId, consumedAt: null, item: { kind: "STREAK_FREEZE" } },
       }),
       getStreakFreezeEligibility(session.childId),
+      getMysteryBoxStatus(session.childId),
     ]);
+
+  const justOpenedReward = boxReward ? Number.parseInt(boxReward, 10) : null;
+  const canAffordBox = wallet.balance >= MYSTERY_BOX_COST;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-12">
@@ -59,6 +77,46 @@ export default async function RewardsPage({
       {success && (
         <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
       )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">🎁 Boîte surprise du jour</h2>
+        {justOpenedReward !== null ? (
+          <MysteryBoxResult rewardPoints={justOpenedReward} isJackpot={boxJackpot === "1"} />
+        ) : mysteryBox.alreadyOpenedToday ? (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-600">
+            {mysteryBox.todayJackpot ? "🎉 " : "🎁 "}
+            Tu as déjà ouvert la boîte aujourd&apos;hui
+            {mysteryBox.todayReward !== null ? ` (+${mysteryBox.todayReward} points)` : ""}. Reviens
+            demain !
+          </div>
+        ) : mysteryBox.eligible ? (
+          <form
+            action={openMysteryBox}
+            className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-4"
+          >
+            <p className="text-sm text-amber-800">
+              Ouvre la boîte pour gagner des points — avec une chance rare de décrocher le{" "}
+              <span className="font-semibold">gros jackpot de 500 points</span> !
+            </p>
+            <button
+              type="submit"
+              disabled={!canAffordBox}
+              className="rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
+              Ouvrir ({MYSTERY_BOX_COST} points)
+            </button>
+            {!canAffordBox && (
+              <p className="text-xs text-amber-700">
+                Il te faut {MYSTERY_BOX_COST} points pour ouvrir la boîte.
+              </p>
+            )}
+          </form>
+        ) : (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-600">
+            🔒 {mysteryBox.reason ?? "La boîte surprise n'est pas encore débloquée."}
+          </div>
+        )}
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Mes badges</h2>

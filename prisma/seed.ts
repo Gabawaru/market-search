@@ -262,10 +262,10 @@ const REWARD_CATALOG: {
     code: "pause_day",
     label: "Jour de pause",
     description: "Un jour de pause qui ne casse pas ta série — utilisé automatiquement si tu manques un jour.",
-    // Volontairement coûteux (5x le prix initial) : un jour de pause doit rester une vraie
-    // récompense pour un effort soutenu, pas un filet de sécurité bon marché qui permettrait
-    // d'accumuler des séries sans pratiquer réellement.
-    cost: 500,
+    // Volontairement très coûteux : un jour de pause doit rester une vraie récompense pour un
+    // effort très soutenu, pas un filet de sécurité bon marché. Avec le nouveau barème (exo = 1
+    // point, éval réussie = 40), 2500 points représente un engagement long dans le temps.
+    cost: 2500,
     icon: "🌴",
     kind: "STREAK_FREEZE",
   },
@@ -326,10 +326,11 @@ async function seedDevAdmin() {
 // (jamais copiés d'un contenu tiers), et alignés sur des attendus non protégeables (le programme
 // scolaire). Réponses toujours déterministes (numérique/fraction, vérifiées par answersMatch).
 // Insérés en statut PENDING : rien n'est visible pour un enfant sans validation dans /dev/console.
-const CURATED_SOURCE_URL =
+const CURATED_SRC_6E =
   "https://eduscol.education.gouv.fr/sites/default/files/document/12-maths-6e-attendus-eduscol1114742pdf-74661.pdf";
-const CURATED_SOURCE_LICENSE =
-  "Licence Ouverte / Etalab 2.0 — attendus officiels de 6e, Éduscol (Éducation nationale)";
+const CURATED_SRC_3E = "https://eduscol.education.fr/document/14068/download";
+const CURATED_LICENSE =
+  "Licence Ouverte / Etalab 2.0 — attendus officiels de fin d'année, Éduscol (Éducation nationale)";
 
 const CURATED_EXERCISES: {
   skillCode: string;
@@ -337,15 +338,27 @@ const CURATED_EXERCISES: {
   gradeLevel: string;
   promptText: string;
   correctAnswer: string;
+  sourceUrl: string;
 }[] = [
-  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 6/8 et écris-la sous forme irréductible (par exemple : a/b).", correctAnswer: "3/4" },
-  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 10/15 sous forme irréductible.", correctAnswer: "2/3" },
-  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 8/20 sous forme irréductible.", correctAnswer: "2/5" },
-  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 18/24 sous forme irréductible.", correctAnswer: "3/4" },
-  { skillCode: "division", levelOrder: 2, gradeLevel: "6e", promptText: "Calcule le quotient : 144 ÷ 12.", correctAnswer: "12" },
-  { skillCode: "division", levelOrder: 2, gradeLevel: "6e", promptText: "Un lot de 250 images est partagé équitablement entre 25 enfants. Combien chaque enfant reçoit-il d'images ?", correctAnswer: "10" },
-  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "6e", promptText: "Calcule : 25 × 16.", correctAnswer: "400" },
-  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "6e", promptText: "Calcule : 125 × 8.", correctAnswer: "1000" },
+  // Lot 6e — attendus de fin d'année de 6e (Éduscol).
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 6/8 et écris-la sous forme irréductible (par exemple : a/b).", correctAnswer: "3/4", sourceUrl: CURATED_SRC_6E },
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 10/15 sous forme irréductible.", correctAnswer: "2/3", sourceUrl: CURATED_SRC_6E },
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 8/20 sous forme irréductible.", correctAnswer: "2/5", sourceUrl: CURATED_SRC_6E },
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 18/24 sous forme irréductible.", correctAnswer: "3/4", sourceUrl: CURATED_SRC_6E },
+  { skillCode: "division", levelOrder: 2, gradeLevel: "6e", promptText: "Calcule le quotient : 144 ÷ 12.", correctAnswer: "12", sourceUrl: CURATED_SRC_6E },
+  { skillCode: "division", levelOrder: 2, gradeLevel: "6e", promptText: "Un lot de 250 images est partagé équitablement entre 25 enfants. Combien chaque enfant reçoit-il d'images ?", correctAnswer: "10", sourceUrl: CURATED_SRC_6E },
+  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "6e", promptText: "Calcule : 25 × 16.", correctAnswer: "400", sourceUrl: CURATED_SRC_6E },
+  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "6e", promptText: "Calcule : 125 × 8.", correctAnswer: "1000", sourceUrl: CURATED_SRC_6E },
+  // Lot 3e — attendus de fin d'année de 3e (Éduscol, cycle 4). Rattachés aux niveaux existants les
+  // plus proches ; la vraie classe est portée par gradeLevel "3e".
+  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "3e", promptText: "Calcule la puissance : 2^5 (2 puissance 5).", correctAnswer: "32", sourceUrl: CURATED_SRC_3E },
+  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "3e", promptText: "Calcule la puissance : 10^3 (10 puissance 3).", correctAnswer: "1000", sourceUrl: CURATED_SRC_3E },
+  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "3e", promptText: "Calcule la racine carrée : √144.", correctAnswer: "12", sourceUrl: CURATED_SRC_3E },
+  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "3e", promptText: "Dans un triangle rectangle, les deux côtés de l'angle droit mesurent 3 cm et 4 cm. Quelle est la longueur de l'hypoténuse, en cm (théorème de Pythagore) ?", correctAnswer: "5", sourceUrl: CURATED_SRC_3E },
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "3e", promptText: "Calcule 2/3 + 1/6 et donne le résultat sous forme de fraction irréductible.", correctAnswer: "5/6", sourceUrl: CURATED_SRC_3E },
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "3e", promptText: "Calcule 3/4 × 2/9 et donne le résultat sous forme de fraction irréductible.", correctAnswer: "1/6", sourceUrl: CURATED_SRC_3E },
+  { skillCode: "division", levelOrder: 2, gradeLevel: "3e", promptText: "Résous l'équation 3x + 5 = 20 et donne la valeur de x.", correctAnswer: "5", sourceUrl: CURATED_SRC_3E },
+  { skillCode: "division", levelOrder: 2, gradeLevel: "3e", promptText: "Quel est le PGCD (plus grand commun diviseur) de 24 et 36 ?", correctAnswer: "12", sourceUrl: CURATED_SRC_3E },
 ];
 
 async function seedCuratedExercises() {
@@ -367,8 +380,8 @@ async function seedCuratedExercises() {
             promptText: ex.promptText,
             correctAnswer: ex.correctAnswer,
             sourceType: "INSPIRED_BY_SOURCE",
-            sourceUrl: CURATED_SOURCE_URL,
-            sourceLicense: CURATED_SOURCE_LICENSE,
+            sourceUrl: ex.sourceUrl,
+            sourceLicense: CURATED_LICENSE,
             gradeLevel: ex.gradeLevel,
           },
         });
@@ -382,12 +395,98 @@ async function seedCuratedExercises() {
   }
 }
 
+// Quelques leçons de concept (type AI_PAGE) rédigées de façon originale, sourcées sur le programme
+// officiel (Éduscol). ⚠️ Contrairement aux exercices curés, le modèle Lesson n'a pas de statut de
+// validation : une leçon seedée est visible directement par l'enfant. Contenu factuel, risque
+// faible. Idempotent (skip si une leçon du même titre existe déjà) et défensif.
+const SEED_LESSONS: {
+  skillCode: string;
+  levelOrder: number;
+  gradeLevel: string;
+  title: string;
+  contentMarkdown: string;
+  contentSourceUrl: string;
+}[] = [
+  {
+    skillCode: "fractions",
+    levelOrder: 1,
+    gradeLevel: "6e",
+    title: "Comprendre et simplifier une fraction",
+    contentMarkdown:
+      "Une fraction a/b partage une quantité en b parts égales dont on en prend a.\n\n" +
+      "Simplifier une fraction, c'est diviser le numérateur (en haut) et le dénominateur (en bas) " +
+      "par un même nombre, jusqu'à ne plus pouvoir : on obtient la forme irréductible.\n\n" +
+      "Exemple : 6/8 → on divise en haut et en bas par 2 → 3/4. On ne peut plus simplifier : 3/4 " +
+      "est la forme irréductible.\n\n" +
+      "Astuce : cherche un diviseur commun (2, 3, 5…) au numérateur et au dénominateur.",
+    contentSourceUrl: CURATED_SRC_6E,
+  },
+  {
+    skillCode: "multiplication",
+    levelOrder: 2,
+    gradeLevel: "3e",
+    title: "Les puissances d'un nombre",
+    contentMarkdown:
+      "Une puissance est une multiplication répétée du même nombre.\n\n" +
+      "a^n (a puissance n) veut dire : on multiplie a par lui-même n fois.\n\n" +
+      "Exemples : 2^5 = 2 × 2 × 2 × 2 × 2 = 32. 10^3 = 10 × 10 × 10 = 1000.\n\n" +
+      "Cas utiles : a^1 = a, et par convention a^0 = 1 (pour a non nul).",
+    contentSourceUrl: CURATED_SRC_3E,
+  },
+  {
+    skillCode: "multiplication",
+    levelOrder: 2,
+    gradeLevel: "3e",
+    title: "Le théorème de Pythagore",
+    contentMarkdown:
+      "Dans un triangle rectangle, le côté le plus long (l'hypoténuse) est opposé à l'angle droit.\n\n" +
+      "Le théorème de Pythagore dit : (hypoténuse)² = (côté 1)² + (côté 2)², où côté 1 et côté 2 " +
+      "sont les deux côtés de l'angle droit.\n\n" +
+      "Exemple : si les côtés de l'angle droit mesurent 3 et 4, alors l'hypoténuse² = 9 + 16 = 25, " +
+      "donc l'hypoténuse = √25 = 5.",
+    contentSourceUrl: CURATED_SRC_3E,
+  },
+];
+
+async function seedLessons() {
+  try {
+    for (const lesson of SEED_LESSONS) {
+      try {
+        const existing = await prisma.lesson.findFirst({ where: { title: lesson.title } });
+        if (existing) continue;
+        const skill = await prisma.skill.findUnique({ where: { code: lesson.skillCode } });
+        if (!skill) continue;
+        const level = await prisma.level.findUnique({
+          where: { skillId_order: { skillId: skill.id, order: lesson.levelOrder } },
+        });
+        if (!level) continue;
+        await prisma.lesson.create({
+          data: {
+            levelId: level.id,
+            title: lesson.title,
+            type: "AI_PAGE",
+            contentMarkdown: lesson.contentMarkdown,
+            contentSourceUrl: lesson.contentSourceUrl,
+            gradeLevel: lesson.gradeLevel,
+          },
+        });
+      } catch (err) {
+        console.warn("Leçon (seed) ignorée (non bloquant) :", err);
+      }
+    }
+    console.log("Leçons (seed) prêtes.");
+  } catch (err) {
+    console.warn("seedLessons non bloquant, ignoré :", err);
+  }
+}
+
 async function main() {
   await seedDevAdmin();
   await seedMathCurriculum();
   await seedBadges();
   await seedRewardCatalog();
   await seedCuratedExercises();
+  await seedLessons();
 }
 
 main()
