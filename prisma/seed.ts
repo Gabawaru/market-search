@@ -320,11 +320,74 @@ async function seedDevAdmin() {
   console.log(`Compte développeur prêt pour ${email}`);
 }
 
+// Premier lot d'exercices collège sourcés sur le programme officiel (attendus de fin d'année de
+// 6e, Éduscol / Ministère de l'Éducation nationale, sous Licence Ouverte / Etalab 2.0 qui autorise
+// la réutilisation et l'adaptation avec attribution). Les énoncés sont RÉÉCRITS de façon originale
+// (jamais copiés d'un contenu tiers), et alignés sur des attendus non protégeables (le programme
+// scolaire). Réponses toujours déterministes (numérique/fraction, vérifiées par answersMatch).
+// Insérés en statut PENDING : rien n'est visible pour un enfant sans validation dans /dev/console.
+const CURATED_SOURCE_URL =
+  "https://eduscol.education.gouv.fr/sites/default/files/document/12-maths-6e-attendus-eduscol1114742pdf-74661.pdf";
+const CURATED_SOURCE_LICENSE =
+  "Licence Ouverte / Etalab 2.0 — attendus officiels de 6e, Éduscol (Éducation nationale)";
+
+const CURATED_EXERCISES: {
+  skillCode: string;
+  levelOrder: number;
+  gradeLevel: string;
+  promptText: string;
+  correctAnswer: string;
+}[] = [
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 6/8 et écris-la sous forme irréductible (par exemple : a/b).", correctAnswer: "3/4" },
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 10/15 sous forme irréductible.", correctAnswer: "2/3" },
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 8/20 sous forme irréductible.", correctAnswer: "2/5" },
+  { skillCode: "fractions", levelOrder: 1, gradeLevel: "6e", promptText: "Simplifie la fraction 18/24 sous forme irréductible.", correctAnswer: "3/4" },
+  { skillCode: "division", levelOrder: 2, gradeLevel: "6e", promptText: "Calcule le quotient : 144 ÷ 12.", correctAnswer: "12" },
+  { skillCode: "division", levelOrder: 2, gradeLevel: "6e", promptText: "Un lot de 250 images est partagé équitablement entre 25 enfants. Combien chaque enfant reçoit-il d'images ?", correctAnswer: "10" },
+  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "6e", promptText: "Calcule : 25 × 16.", correctAnswer: "400" },
+  { skillCode: "multiplication", levelOrder: 2, gradeLevel: "6e", promptText: "Calcule : 125 × 8.", correctAnswer: "1000" },
+];
+
+async function seedCuratedExercises() {
+  // Entièrement défensif : ne doit JAMAIS faire échouer le seed (donc le build/déploiement).
+  try {
+    for (const ex of CURATED_EXERCISES) {
+      try {
+        const existing = await prisma.curatedExercise.findFirst({ where: { promptText: ex.promptText } });
+        if (existing) continue; // idempotent : respecte aussi une décision APPROVED/REJECTED déjà prise
+        const skill = await prisma.skill.findUnique({ where: { code: ex.skillCode } });
+        if (!skill) continue;
+        const level = await prisma.level.findUnique({
+          where: { skillId_order: { skillId: skill.id, order: ex.levelOrder } },
+        });
+        if (!level) continue;
+        await prisma.curatedExercise.create({
+          data: {
+            levelId: level.id,
+            promptText: ex.promptText,
+            correctAnswer: ex.correctAnswer,
+            sourceType: "INSPIRED_BY_SOURCE",
+            sourceUrl: CURATED_SOURCE_URL,
+            sourceLicense: CURATED_SOURCE_LICENSE,
+            gradeLevel: ex.gradeLevel,
+          },
+        });
+      } catch (err) {
+        console.warn("Exercice curé ignoré (non bloquant) :", err);
+      }
+    }
+    console.log("Exercices curés (seed) prêts — en attente de validation dans /dev/console.");
+  } catch (err) {
+    console.warn("seedCuratedExercises non bloquant, ignoré :", err);
+  }
+}
+
 async function main() {
   await seedDevAdmin();
   await seedMathCurriculum();
   await seedBadges();
   await seedRewardCatalog();
+  await seedCuratedExercises();
 }
 
 main()
