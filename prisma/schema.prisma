@@ -72,6 +72,8 @@ model Child {
   dailyRecommendations       DailyRecommendation[]
   teacherExerciseSubmissions TeacherExerciseSubmission[]
   curatedExerciseAttempts    CuratedExerciseAttempt[]
+  levelCompletionBonuses     LevelCompletionBonus[]
+  dailyMysteryBoxes          DailyMysteryBox[]
 
   @@index([parentId])
   @@index([teacherId])
@@ -204,6 +206,7 @@ model Level {
   teacherExercises TeacherExercise[]
   curatedExercises CuratedExercise[]
   lessons          Lesson[]
+  completionBonuses LevelCompletionBonus[]
 
   @@unique([skillId, order])
 }
@@ -656,6 +659,37 @@ model DailyRecommendation {
   createdAt DateTime @default(now())
 
   @@unique([childId, date])
+}
+
+// Bonus "catégorie complétée" (+29 points) attribué UNE SEULE FOIS par niveau, quand l'enfant
+// atteint pour la première fois le seuil de maîtrise du niveau (prêt pour l'évaluation). L'unicité
+// [childId, levelId] garantit qu'on ne le donne jamais deux fois.
+model LevelCompletionBonus {
+  id        String   @id @default(cuid())
+  childId   String
+  child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  levelId   String
+  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  awardedAt DateTime @default(now())
+
+  @@unique([childId, levelId])
+  @@index([childId])
+}
+
+// Boîte surprise quotidienne : achetable une seule fois par jour civil (unicité [childId, date]),
+// uniquement après avoir fait le cours du jour + un peu de pratique. Ne fait gagner que des points
+// internes — jamais de récompense à valeur monétaire réelle.
+model DailyMysteryBox {
+  id           String   @id @default(cuid())
+  childId      String
+  child        Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  date         DateTime
+  rewardPoints Int
+  isJackpot    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@unique([childId, date])
+  @@index([childId])
 }
 
 // ---------------------------------------------------------------------------

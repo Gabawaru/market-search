@@ -202,7 +202,7 @@ export async function finishEvaluation(evaluationId: string, childId: string) {
   // récompensée même en cas d'échec pour encourager à retenter, réussite largement récompensée.
   if (!alreadyInvalidated) {
     if (passed) {
-      await awardPoints(childId, "EARNED_EVALUATION", 50, "Évaluation réussie");
+      await awardPoints(childId, "EARNED_EVALUATION", 40, "Évaluation réussie");
       const passedCount = await prisma.evaluation.count({ where: { childId, passed: true } });
       if (passedCount === 1) {
         await maybeAwardBadge(childId, "first_evaluation_passed");
